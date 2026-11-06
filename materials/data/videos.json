@@ -1,0 +1,177 @@
+[
+  {
+    "id": "00",
+    "name": "Swing 00",
+    "frames": 693,
+    "reconstructionFrames": 693,
+    "alignmentError": null,
+    "fps": 24,
+    "sync": "materials/data/videos/00/sync.json",
+    "views": [
+      {
+        "name": "face-on",
+        "src": "materials/data/previews/00/face-on.mp4",
+        "fps": 24,
+        "frames": 693,
+        "source": "materials/data/videos/00/face-on.mp4"
+      },
+      {
+        "name": "down-the-line",
+        "src": "materials/data/previews/00/down-the-line.mp4",
+        "fps": 24,
+        "frames": 694,
+        "source": "materials/data/videos/00/down-the-line.mp4"
+      }
+    ]
+  },
+  {
+    "id": "01",
+    "name": "Swing 01",
+    "frames": 749,
+    "reconstructionFrames": 749,
+    "alignmentError": null,
+    "fps": 30,
+    "sync": "materials/data/videos/01/sync.json",
+    "views": [
+      {
+        "name": "face-on",
+        "src": "materials/data/previews/01/face-on.mp4",
+        "fps": 30,
+        "frames": 765,
+        "source": "materials/data/videos/01/face-on.mp4"
+      },
+      {
+        "name": "down-the-line",
+        "src": "materials/data/previews/01/down-the-line.mp4",
+        "fps": 30,
+        "frames": 765,
+        "source": "materials/data/videos/01/down-the-line.mp4"
+      }
+    ]
+  },
+  {
+    "id": "03",
+    "name": "Swing 03",
+    "frames": 218,
+    "reconstructionFrames": 218,
+    "alignmentError": null,
+    "fps": 30,
+    "sync": "materials/data/videos/03/sync.json",
+    "views": [
+      {
+        "name": "face-on",
+        "src": "materials/data/previews/03/face-on.mp4",
+        "fps": 30,
+        "frames": 440,
+        "source": "materials/data/videos/03/face-on.mp4"
+      },
+      {
+        "name": "down-the-line",
+        "src": "materials/data/previews/03/down-the-line.mp4",
+        "fps": 30,
+        "frames": 240,
+        "source": "materials/data/videos/03/down-the-line.mp4"
+      }
+    ]
+  },
+  {
+    "id": "04",
+    "name": "Swing 04",
+    "frames": 121,
+    "reconstructionFrames": 121,
+    "alignmentError": null,
+    "fps": 30,
+    "sync": "materials/data/videos/04/sync.json",
+    "views": [
+      {
+        "name": "face-on",
+        "src": "materials/data/previews/04/face-on.mp4",
+        "fps": 30,
+        "frames": 248,
+        "source": "materials/data/videos/04/face-on.mp4"
+      },
+      {
+        "name": "down-the-line",
+        "src": "materials/data/previews/04/down-the-line.mp4",
+        "fps": 30,
+        "frames": 158,
+        "source": "materials/data/videos/04/down-the-line.mp4"
+      }
+    ]
+  },
+  {
+    "id": "05",
+    "name": "Swing 05",
+    "frames": 108,
+    "reconstructionFrames": 108,
+    "alignmentError": null,
+    "fps": 60,
+    "sync": "materials/data/videos/05/sync.json",
+    "views": [
+      {
+        "name": "face-on",
+        "src": "materials/data/previews/05/face-on.mp4",
+        "fps": 60,
+        "frames": 180,
+        "source": "materials/data/videos/05/face-on.mp4"
+      },
+      {
+        "name": "down-the-line",
+        "src": "materials/data/previews/05/down-the-line.mp4",
+        "fps": 30,
+        "frames": 440,
+        "source": "materials/data/videos/05/down-the-line.mp4"
+      }
+    ]
+  },
+  {
+    "id": "06",
+    "name": "Swing 06",
+    "frames": 558,
+    "reconstructionFrames": 558,
+    "alignmentError": null,
+    "fps": 30,
+    "sync": "materials/data/videos/06/sync.json",
+    "views": [
+      {
+        "name": "face-on",
+        "src": "materials/data/previews/06/face-on.mp4",
+        "fps": 30,
+        "frames": 721,
+        "source": "materials/data/videos/06/face-on.mp4"
+      },
+      {
+        "name": "down-the-line",
+        "src": "materials/data/previews/06/down-the-line.mp4",
+        "fps": 27,
+        "frames": 638,
+        "source": "materials/data/videos/06/down-the-line.mp4"
+      }
+    ]
+  },
+  {
+    "id": "12",
+    "name": "Swing 12",
+    "frames": 353,
+    "reconstructionFrames": 353,
+    "alignmentError": null,
+    "fps": 30,
+    "sync": "materials/data/videos/12/sync.json",
+    "views": [
+      {
+        "name": "face-on",
+        "src": "materials/data/previews/12/face-on.mp4",
+        "fps": 30,
+        "frames": 177,
+        "source": "materials/data/videos/12/face-on.mp4"
+      },
+      {
+        "name": "down-the-line",
+        "src": "materials/data/previews/12/down-the-line.mp4",
+        "fps": 30,
+        "frames": 378,
+        "source": "materials/data/videos/12/down-the-line.mp4"
+      }
+    ]
+  }
+]

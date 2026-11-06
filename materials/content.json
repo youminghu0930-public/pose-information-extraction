@@ -1,0 +1,65 @@
+{
+  "page": {
+    "title": "Pose Information Extraction",
+    "description": "Inspecting reconstructed golf swings as a foundation for pose information extraction.",
+    "eyebrow": "Computer vision \u00b7 Golf swing analysis",
+    "navigationLabel": "Project sections",
+    "navigationToggle": "Toggle section navigation",
+    "mainPage": {
+      "label": "Return to main page",
+      "url": "https://youminghu0930-public.github.io/golf-swing-analysis-poc/#projects"
+    },
+    "footer": "Pose information extraction",
+    "role": "",
+    "banner": {
+      "enabled": true,
+      "swing": "00",
+      "label": "Face-on golf swing 3D reconstruction preview",
+      "fps": 60
+    }
+  },
+  "sections": [
+    {
+      "id": "abstract",
+      "title": "Abstract",
+      "paragraphs": [
+        "This project builds on synchronized 3D golf swing reconstruction to present motion in an interactive, camera-aware viewer. Snapshot highlights and synchronized playback provide a foundation for inspecting pose information."
+      ]
+    },
+    {
+      "id": "introduction",
+      "title": "Introduction",
+      "paragraphs": [
+        "A reconstructed swing provides a spatial description of body and club motion. This page brings the reconstructed motion and its source recordings together for visual inspection."
+      ]
+    },
+    {
+      "id": "method",
+      "title": "Method",
+      "paragraphs": [
+        "The viewer reads the saved 3D reconstruction and uses each recording\u2019s sync.json mapping to select corresponding video frames on one shared timeline."
+      ]
+    },
+    {
+      "id": "results",
+      "title": "Results",
+      "paragraphs": [
+        "Explore the 3D snapshot highlights above and the synchronized swings below. Switch between face-on, down-the-line, and free views to inspect the reconstructed motion."
+      ]
+    },
+    {
+      "id": "discussion",
+      "title": "Discussion",
+      "paragraphs": [
+        "The current view supports qualitative inspection of reconstructed motion. Interpretation depends on the quality of the reconstruction and the alignment of the source recordings."
+      ]
+    },
+    {
+      "id": "conclusion",
+      "title": "Conclusion",
+      "paragraphs": [
+        "The interactive viewer establishes a consistent foundation for presenting pose information alongside reconstructed golf swings."
+      ]
+    }
+  ]
+}

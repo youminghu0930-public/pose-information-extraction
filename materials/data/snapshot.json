@@ -1,0 +1,37 @@
+{
+  "03": {
+    "duration": 3,
+    "stay": 0.5,
+    "joints": [
+      "golf_club_head"
+    ]
+  },
+  "04": {
+    "duration": 3,
+    "stay": 0.5,
+    "joints": [
+      "golf_club_head"
+    ]
+  },
+  "05": {
+    "duration": 3,
+    "stay": 0.5,
+    "joints": [
+      "golf_club_head"
+    ]
+  },
+  "06": {
+    "duration": 3,
+    "stay": 0.5,
+    "joints": [
+      "golf_club_head"
+    ]
+  },
+  "12": {
+    "duration": 3,
+    "stay": 0.5,
+    "joints": [
+      "golf_club_head"
+    ]
+  }
+}
