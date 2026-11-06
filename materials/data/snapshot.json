@@ -6,13 +6,13 @@
       "duration": 30,
       "stay": 15
     },
-    "hip_turn_on_spine_plane": {
+    "shoulder_turn_on_spine_plane": {
       "video": "00",
       "frame": 300,
       "duration": 30,
       "stay": 5
     },
-    "shoulder_turn_on_spine_plane": {
+    "hip_turn_on_spine_plane": {
       "video": "00",
       "frame": 300,
       "duration": 30,
@@ -20,6 +20,12 @@
     }
   },
   "geometric": {
+    "spine_bend_tilt": {
+      "video": "00",
+      "frame": 300,
+      "duration": 30,
+      "stay": 5
+    },
     "shoulder_turn_tilt": {
       "video": "00",
       "frame": 300,
@@ -27,12 +33,6 @@
       "stay": 5
     },
     "hip_turn_tilt": {
-      "video": "00",
-      "frame": 300,
-      "duration": 30,
-      "stay": 5
-    },
-    "spine_bend_tilt": {
       "video": "00",
       "frame": 300,
       "duration": 30,

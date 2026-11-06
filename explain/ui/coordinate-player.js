@@ -6,7 +6,7 @@ import {axisColors} from '../palette.js';
 import {createPlaneRenderer} from './plane.js';
 import {createAxisFrameRenderer} from './axis-frame.js';
 export function mountCoordinatePlayer(root,model,{scene,toWorld,setPoses,draw,canvas,setFocus,setCamera,setPairFocus},createPlan){
- const plan=createPlan(model),plane=createPlaneRenderer(scene,toWorld),reference=createAxisFrameRenderer(scene,toWorld,2,canvas),torso=createAxisFrameRenderer(scene,toWorld,4.5,canvas,plan.targetAxisColors),sectors=createRotationSectors(scene,toWorld),originalReference=createAxisFrameRenderer(scene,toWorld,2,canvas),originalTorso=createAxisFrameRenderer(scene,toWorld,4.5,canvas,plan.targetAxisColors);
+ const plan=createPlan(model),plane=createPlaneRenderer(scene,toWorld),reference=createAxisFrameRenderer(scene,toWorld,2.7,canvas),torso=createAxisFrameRenderer(scene,toWorld,4.5,canvas,plan.targetAxisColors),sectors=createRotationSectors(scene,toWorld),originalReference=createAxisFrameRenderer(scene,toWorld,2.7,canvas),originalTorso=createAxisFrameRenderer(scene,toWorld,4.5,canvas,plan.targetAxisColors);
  root.classList.add('metric-explanation');root.setAttribute('aria-label','Animated measurement coordinate frames');
 
  const values=make('div',undefined,'explain-item-options'),outputs={};values.setAttribute('role','group');values.setAttribute('aria-label','Rotation values');

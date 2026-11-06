@@ -33,7 +33,7 @@ test('alignment matches origin and scale; Y-X-Z rotation ends exactly at torso a
   const d=read('materials/data/3d_results/'+file);
   for(const frame of [0,Math.floor(d.reconstruction.length/2),d.reconstruction.length-1]){
    const {plan}=setup(file,frame),turn=plan.sample(plan.segments.find(s=>s.id==='turn').start),finish=plan.sample(plan.segments.find(s=>s.id==='finish').start);
-   close(turn.referenceAxes.frame.origin,plan.frames.torso.origin);assert.equal(turn.referenceAxes.frame.length,plan.frames.torso.length);
+   close(turn.referenceAxes.frame.origin,plan.frames.measurement.origin);assert.equal(turn.referenceAxes.frame.length,plan.frames.torso.length);
    for(const key of ['x','y','z'])close(finish.referenceAxes.frame[key],plan.frames.torso[key],1e-8);
    for(const [key,axis] of [['turn','y'],['bend','x'],['tilt','z']]){
     const s=plan.sample(plan.segments.find(s=>s.id===key).start+100);assert.equal(s.referenceAxes.highlight,axis);
@@ -176,4 +176,22 @@ test('Turn to Forward bend remains upright and avoids pole flips',async()=>{
  }
  const turn=plan.segments.find(s=>s.id==='turn');
  close(plan.sample(turn.end-.001).camera.direction,plan.sample(step.start).camera.direction);
+});
+
+test('torso axes are built at the shoulders, then translated to the hip midpoint for all measurements',()=>{
+ for(const file of fs.readdirSync(new URL('../materials/data/3d_results/',import.meta.url)).filter(f=>f.endsWith('.json'))){
+  const data=read('materials/data/3d_results/'+file),frame=Math.min(300,data.reconstruction.length-1),{plan}=setup(file,frame);
+  const joint=name=>data.reconstruction[frame][data.joints.indexOf(name)];
+  const hips=joint('left_hip').map((v,i)=>(v+joint('right_hip')[i])/2),shoulders=joint('left_shoulder').map((v,i)=>(v+joint('right_shoulder')[i])/2);
+  const move=plan.segments.find(s=>s.id==='target-root');
+  const start=plan.sample(move.start),middle=plan.sample(move.start+move.motionDuration/2),end=plan.sample(move.start+move.motionDuration);
+  close(start.torsoAxes.frame.origin,shoulders);close(end.torsoAxes.frame.origin,hips);
+  close(middle.torsoAxes.frame.origin,shoulders.map((v,i)=>(v+hips[i])/2));
+  for(const axis of ['x','y','z'])close(start.torsoAxes.frame[axis],end.torsoAxes.frame[axis]);
+  for(const id of ['turn','bend','tilt','finish']){
+   const step=plan.segments.find(s=>s.id===id),state=plan.sample(step.start+step.duration*.5);
+   close(state.referenceAxes.frame.origin,hips);close(state.torsoAxes.frame.origin,hips);close(state.focusOrigin,hips);
+   for(const sector of state.sectors)close(sector.origin,hips);
+  }
+ }
 });

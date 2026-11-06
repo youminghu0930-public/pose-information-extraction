@@ -1,11 +1,13 @@
 import {projectArrow,createEndOnMarker} from './arrow-projection.js';
 // One closed silhouette avoids a shaft poking through a separate arrowhead.
 // Dimensions are CSS pixels, independent of camera distance and orientation.
-// Only clip head length when the entire arrow is shorter than the head.
+// When space is limited, scale every dimension together rather than squashing
+// the triangle. Keep at least two thirds of the arrow available for its shaft.
 export function arrowShape(x,y,tx,ty,width){
  const dx=tx-x,dy=ty-y,length=Math.hypot(dx,dy);
  if(length<4)return null;
- const ux=dx/length,uy=dy/length,shaft=width,headSize=width*5,head=Math.min(headSize,length),halfHead=width*2.4;
+ const ux=dx/length,uy=dy/length,scale=Math.min(1,length/(width*9));
+ const shaft=width*scale,head=shaft*3,halfHead=shaft*1.35;
  const point=(along,side)=>`${x+ux*along-uy*side} ${y+uy*along+ux*side}`;
  return `M${point(0,-shaft/2)} L${point(length-head,-shaft/2)} L${point(length-head,-halfHead)} L${point(length,0)} L${point(length-head,halfHead)} L${point(length-head,shaft/2)} L${point(0,shaft/2)} Z`;
 }

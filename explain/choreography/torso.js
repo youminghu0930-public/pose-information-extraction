@@ -9,8 +9,11 @@ import {ease,clamp} from '../ui/timeline.js';
 import {cameraOrientation,cameraBetween,uprightCamera} from './camera.js';
 export function createTorsoChoreography(model){
  const {data,meta,entry}=model.context,frames=frameDefinitions(data,meta,entry.frame),values=Object.fromEntries(model.items.map(item=>[item.key,item.computed]));
+ const measurement={...frames.torso,origin:model.context.source(model.context.midpoint('left_hip','right_hip'))};
+ frames.measurement=measurement;
  const segments=[...openingSegments(),{id:'reference-focus',title:'Reference pose',duration:1100},...constructionSegments('reference',frames.reference,'Reference'),
   {id:'selected-focus',title:'Selected pose',duration:1300},...constructionSegments('torso',frames.torso,'Torso'),
+  {id:'target-root',title:'Move torso axes to hip center',duration:2200,motionDuration:1700},
   {id:'compare',title:'Two coordinate frames',duration:1200,motionDuration:700},
   {id:'align',title:'Align origins and lengths',duration:2700,motionDuration:2200},
   ...['turn','bend','tilt'].flatMap(key=>[
@@ -18,13 +21,13 @@ export function createTorsoChoreography(model){
    {id:key,title:{turn:'Turn · Y axis',bend:'Forward bend · X axis',tilt:'Side tilt · Z axis'}[key],duration:3900,motionDuration:3400},
   ]),{id:'finish',title:'Aligned',duration:3000,completion:true},{id:'reset',title:'Reference + selected pose',duration:1200}];
  const total=scheduleSegments(segments,entry.duration,entry.stay);
- const rotation=createIntrinsicRotation(frames.reference,frames.torso,meta,values);
+ const rotation=createIntrinsicRotation(frames.reference,measurement,meta,values);
  const review=createRotationReview(frames.reference,rotation);
  const front=cameraOrientation(frames.reference.z,frames.reference.y);
- const cameras=Object.fromEntries(Object.entries(frames).map(([key,frame])=>[key,createConstructionCamera(frame,front)]));
+ const cameras=Object.fromEntries(['reference','torso'].map(key=>[key,createConstructionCamera(frames[key],front)]));
  function sampleState(time){
   const t=clamp(time/total)*total,s=segments.find(segment=>t<segment.end)??segments.at(-1),elapsed=t-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
-  const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{turn:0,bend:0,tilt:0},active:null,focus:0,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null};
+  const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{turn:0,bend:0,tilt:0},active:null,focus:0,focusOrigin:measurement.origin,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null};
   function sampleConstruction(key){
    const result=sampleFrameConstruction(frames[key],s,p,key==='reference'?'reference':'selected');
    state.jointHighlights=result.highlights;return result.axes;
@@ -52,11 +55,12 @@ export function createTorsoChoreography(model){
    Object.assign(state,cameras.torso(s.step==='orthogonalize'?'orthogonalize':['plane','forward','plane-fade'].includes(s.step)?'cross-hold':'hold',1));
    return state;
   }
-  state.torsoAxes=completedAxes(frames.torso,.42);
+  if(s.id==='target-root'){state.selectedPose=.28;state.torsoAxes=completedAxes({...frames.torso,origin:mix(frames.torso.origin,measurement.origin,p)});return state;}
+  state.torsoAxes=completedAxes(measurement,.42);
   if(s.id==='compare'){state.selectedPose=.28-.18*p;state.torsoAxes.opacity=1-.58*p;return state;}
   state.selectedPose=.1;
   if(s.id==='align'){
-   state.referenceAxes=completedAxes({...frames.reference,origin:mix(frames.reference.origin,frames.torso.origin,p),length:frames.reference.length*(1-p)+frames.torso.length*p});state.focus=ease(clamp((p-.7)/.3));return state;
+   state.referenceAxes=completedAxes({...frames.reference,origin:mix(frames.reference.origin,measurement.origin,p),length:frames.reference.length*(1-p)+frames.torso.length*p});state.focus=ease(clamp((p-.7)/.3));return state;
   }
   state.focus=1;
   if(s.id==='finish')return review.sample(state,progress,s.duration);

@@ -1,11 +1,11 @@
 // Shared product vocabulary. Export keys stay stable; labels can change here.
 export const typeNames={kinematic:'Body rotations',geometric:'Geometric angles',position:'Hip displacement'};
 export const subtypeNames={
- torso_turn_bend_tilt:'Torso turn, forward bend and side tilt — shoulders and upper spine',
- hip_turn_on_spine_plane:'Hip rotation around the lower spine',
- shoulder_turn_on_spine_plane:'Shoulder rotation around the lower spine',
- shoulder_turn_tilt:'Shoulder-line turn and tilt',hip_turn_tilt:'Hip-line turn and tilt',
- spine_bend_tilt:'Spine forward bend and side tilt',spine_azimuth_polar_spin:'Spine lean direction, inclination and twist',
+ torso_turn_bend_tilt:'Torso: turn, forward bend, tilt',
+ hip_turn_on_spine_plane:'Hip: turn',
+ shoulder_turn_on_spine_plane:'Shoulder: turn',
+ shoulder_turn_tilt:'Shoulder: turn, tilt',hip_turn_tilt:'Hip: turn, tilt',
+ spine_bend_tilt:'Spine: forward bend, side tilt',spine_azimuth_polar_spin:'Spine lean direction, inclination and twist',
  hip_sway_thrust_lift:'Hip displacement',
 };
 export const itemNames={turn:'Turn',bend:'Forward bend',tilt:'Side tilt',azimuth:'Lean direction',polar:'Lean from vertical',spin:'Twist around the spine',sway:'Sideways displacement',thrust:'Forward displacement',lift:'Vertical displacement'};
@@ -26,3 +26,21 @@ export const subtypeDescriptions={
 };
 subtypeNames.torso_turn_bend_tilt_by_shoulder=subtypeNames.torso_turn_bend_tilt;
 subtypeDescriptions.torso_turn_bend_tilt_by_shoulder=subtypeDescriptions.torso_turn_bend_tilt;
+
+// Compact context for navigation; full explanations remain in the viewer header.
+export const typeDescriptions={
+ kinematic:'Based on the body’s forward kinematics',
+ geometric:'Direct comparison with the global reference',
+ position:'Movement from the reference position',
+};
+export const metricOptionDescriptions={
+ torso_turn_bend_tilt:'Shoulders and upper spine',
+ hip_turn_on_spine_plane:'Around the lower spine',
+ shoulder_turn_on_spine_plane:'Around the lower spine',
+ shoulder_turn_tilt:'Relative to the horizontal plane',
+ hip_turn_tilt:'Relative to the horizontal plane',
+ spine_bend_tilt:'Relative to the vertical reference planes',
+ spine_azimuth_polar_spin:'Lean direction, inclination and twist',
+ hip_sway_thrust_lift:'Sideways, forward and vertical movement',
+};
+metricOptionDescriptions.torso_turn_bend_tilt_by_shoulder=metricOptionDescriptions.torso_turn_bend_tilt;
