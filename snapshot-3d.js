@@ -1,73 +1,24 @@
+import {mountViewInput} from './explain/ui/window-input.js';
+import {createPoseSurface} from './pose-surface.js';
+import {fitPairCamera} from './explain/ui/camera-framing.js';
+import {poseColors} from './explain/palette.js';
+import {mountSnapshotExplanation} from './explain/ui/snapshot.js';
 import {poseStructure} from './pose-structure.js';
-import {parseSnapshotEntries} from './snapshot-config.js';
+import {resolveSnapshot} from './snapshot-config.js';
 import * as THREE from './vendor/three/three.module.js';
 import {interpolateRotation,constrainCameraAboveGround} from './camera-flight.js';
 const valid = p => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
 async function json(url) { const response = await fetch(url); if (!response.ok) throw new Error(`${url}: ${response.status}`); return response.json(); }
-export async function mountSnapshots(root, { showCameras = false } = {}) {
-  const response = await fetch('materials/data/snapshot.json');
-  if(!response.ok)throw new Error('Snapshot configuration unavailable');
-  const entries = parseSnapshotEntries(await response.text());
-  const title = document.createElement('h3'); title.textContent = '3D snapshot highlights'; title.className='result-subheading media-heading'; root.append(title);
-  if(!entries.length)return;
-  const shell=document.createElement('div');shell.className='snapshot-shell';
-  shell.setAttribute('role','region');shell.setAttribute('aria-roledescription','carousel');shell.setAttribute('aria-label','3D snapshot highlights');
-  const wheel=document.createElement('div');wheel.className='snapshot-wheel';shell.append(wheel);
-  const dots=document.createElement('div');dots.className='snapshot-dots';dots.setAttribute('aria-label','Choose a snapshot');
-  const cards=[],buttons=[];let index=0;
-  let position=0,target=0,animation;
-  function layout(){
-    // Absolute carousel cards do not contribute to their parent's height.
-    // Reserve their full height plus the 12px spacing on both edges.
-    const cardHeight=Math.max(0,...cards.map(card=>card.offsetHeight));
-    if(cardHeight)wheel.style.height=`${cardHeight+24}px`;
-    const width=wheel.clientWidth,height=wheel.clientHeight;
-    const placements=cards.map((card,i)=>{
-      const angle=(i-position)*Math.PI*2/cards.length,depth=Math.cos(angle);
-      const radius=cards.length>1?Math.max(220,width*.62):0;
-      const scale=1400/(1400+(1-depth)*radius);
-      return {depth,scale,x:Math.sin(angle)*radius*scale,y:(12+card.offsetHeight/2-height*.45)*(scale-1)};
-    });
-    const order=placements.map((_,i)=>i).sort((a,b)=>placements[a].depth-placements[b].depth||a-b);
-    cards.forEach((card,i)=>{const p=placements[i];card.style.transform=`translateX(-50%) translate(${p.x}px, ${p.y}px) scale(${p.scale})`;card.style.zIndex=String(order.indexOf(i)+1);});
-  }
-  function select(next) {
-    target=next;index=((target%cards.length)+cards.length)%cards.length;
-    cards.forEach((card,i)=>{card.classList.toggle('is-current',i===index);card.inert=i!==index;card.setAttribute('aria-hidden',String(i!==index));buttons[i].setAttribute('aria-current',String(i===index));});
-    cancelAnimationFrame(animation);
-    const from=position,started=performance.now(),duration=Math.min(900,300+Math.max(0,Math.abs(target-from)-1)*70);
-    if(matchMedia('(prefers-reduced-motion: reduce)').matches){position=target;layout();return;}
-    function tick(now){const progress=Math.min(1,(now-started)/duration),phase=progress**.9,eased=phase*phase*(3-2*phase);position=from+(target-from)*eased;layout();if(progress<1)animation=requestAnimationFrame(tick);}
-    animation=requestAnimationFrame(tick);
-  }
-  const carouselResize=new ResizeObserver(layout);carouselResize.observe(wheel);
-  for (const [id, entry] of entries) {
-    const card=document.createElement('article');card.className='pose-snapshot snapshot-card';
-    card.setAttribute('aria-roledescription','slide');card.setAttribute('aria-label',`Swing ${id}`);
-    wheel.append(card);cards.push(card);carouselResize.observe(card);
-    const button=document.createElement('button');button.type='button';button.setAttribute('aria-label',`Show swing ${id}`);button.append(document.createElement('span'));
-    const position=cards.length-1;button.onclick=()=>{let delta=(position-((target%cards.length)+cards.length)%cards.length+cards.length)%cards.length;if(delta>cards.length/2)delta-=cards.length;select(target+delta);};dots.append(button);buttons.push(button);
-  }
-  for(const [direction,label,step] of [['previous','Previous snapshot',-1],['next','Next snapshot',1]]) {
-    const button=document.createElement('button');button.type='button';button.className=`snapshot-arrow snapshot-${direction}`;button.setAttribute('aria-label',label);
-    button.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${step<0?'M15 5l-7 7 7 7':'M9 5l7 7-7 7'}"/></svg>`;
-    button.onclick=()=>select(target+step);button.hidden=entries.length<2;shell.append(button);
-  }
-  const gestureHints=document.createElement('div');
-  const gestureLines=['Drag with the left mouse button or one finger to rotate.'];
-  if(showCameras)gestureLines.push('Drag with the right mouse button or two fingers to pan.');
-  gestureLines.push('Scroll or pinch to zoom.');
-  gestureLines.forEach(line=>{const hint=document.createElement('p');hint.className='keyboard-hint';hint.textContent=line;gestureHints.append(hint);});
-  root.append(shell,dots,gestureHints);select(0);
-  await Promise.all(entries.map(async ([id,entry],i)=>{
-    try { await mountPoseScene(cards[i],id,entry,{showCameras}); }
-    catch(error){console.error(error);cards[i].textContent=`Swing ${id}: ${error.message}`;}
-  }));
-
+export async function mountSnapshots(root,options={}){
+ const {mountMetricSnapshots}=await import('./explain/ui/snapshots.js');
+ return mountMetricSnapshots(root,{...options,mountScene:mountPoseScene});
 }
-export async function mountPoseScene(card, id, entry, { showCameras = false, autoPlay = true, cameraVideos = {}, rawDetections = {}, bannerMode = false } = {}) {
-  const {reconstruction: frames, calibration, joints: jointNames} = await json(`materials/data/3d_results/${encodeURIComponent(id)}.json`);
+export async function mountPoseScene(card, id, entry, { showCameras = false, autoPlay = true, cameraVideos = {}, rawDetections = {}, bannerMode = false, snapshotMetrics } = {}) {
+  const poseData = await json(`materials/data/3d_results/${encodeURIComponent(id)}.json`);
+  const {reconstruction: frames, calibration, joints: jointNames} = poseData;
   const {names,edges,indexes,clubEdges} = poseStructure(jointNames);
+  const snapshot = snapshotMetrics ? resolveSnapshot(entry,snapshotMetrics,frames.length) : null;
+  const referenceFrame = snapshot?.referenceFrame;
   const configuredRange = entry.range ?? entry.ranage ?? [0, frames.length-1];
   const range = Array.isArray(configuredRange)
     ? configuredRange.map((value,index)=>value === null ? (index === 0 ? 0 : frames.length-1) : value)
@@ -77,19 +28,20 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   const joints = (entry.joints || []).map(name => name === 'golf_club_haed' ? 'golf_club_head' : name)
     .filter(name => bannerMode || !name.startsWith('golf_club_'));
   if (joints.some(name => !names.includes(name))) throw new Error('Unknown trail joint');
-  let frame = Math.min(end, Math.max(start, entry.highlight_index ?? start));
+  let frame = Math.min(end, Math.max(start, snapshot?.frame ?? entry.highlight_index ?? start));
   let yaw = 0, pitch = 0, zoom = 1, distanceScale = 1;
   const heading = document.createElement('h4'); heading.textContent = `Swing ${id}`; heading.className='media-item-title';
-  const canvas = document.createElement('canvas'); canvas.setAttribute('aria-label', `Rotatable 3D pose for swing ${id}`); canvas.setAttribute('role','img');
-  card.append(heading,canvas);
-  const points = frames.slice(start,end+1).flat().filter(valid);
+  const canvas = document.createElement('canvas'); canvas.setAttribute('aria-label', `3D pose for swing ${id}`); canvas.setAttribute('role','img');
+  if(!snapshot)card.append(heading);card.append(canvas);
+  const displayedFrames = snapshot ? [frames[referenceFrame],frames[snapshot.frame]] : frames.slice(start,end+1);
+  const points = displayedFrames.flat().filter(valid);
   if (!points.length) throw new Error('No valid 3D points');
   const min = [0,1,2].map(axis => Math.min(...points.map(p=>p[axis])));
   const max = [0,1,2].map(axis => Math.max(...points.map(p=>p[axis])));
   const center = min.map((v,i)=>(v+max[i])/2);
   const radius = Math.max(...points.map(p=>Math.hypot(...p.map((v,i)=>v-center[i])))) || 1;
   const median = values => { const sorted = values.sort((a,b)=>a-b); return sorted[Math.floor(sorted.length/2)]; };
-  const selectedFrames = frames.slice(start,end+1);
+  const selectedFrames = displayedFrames;
   const groundY = median(selectedFrames.map(pose => Math.max(...[pose[indexes.left_ankle],pose[indexes.right_ankle]].filter(valid).map(p=>p[1]))).filter(Number.isFinite));
   const height = groundY - median(selectedFrames.map(pose=>pose[indexes.top_head]).filter(valid).map(p=>p[1]));
   const targetStep = (height > 0 ? height : radius*2)/8;
@@ -104,6 +56,9 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   // source +X is right, source -Y is up, and source +Z points into the screen.
   const unit = height > 0 ? height : radius;
   const vector = p => new THREE.Vector3((p[0]-center[0])/unit, -(p[1]-center[1])/unit, -(p[2]-center[2])/unit);
+  let snapshotOverlayView;
+  let snapshotCamera,snapshotPairFocus;
+  const snapshotFocus=new THREE.Vector3();let snapshotFocusZoom=1;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#f4f7f0');
   const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
@@ -125,20 +80,67 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   const fill = new THREE.DirectionalLight('#dceaff',1); fill.position.set(3,1,-3); scene.add(fill);
   const material = color => new THREE.MeshStandardMaterial({color,roughness:.38,metalness:.08});
   const boneMaterial = material('#63f5b4');
-  if(bannerMode)boneMaterial.transparent=true;
+  if(bannerMode||snapshot)boneMaterial.transparent=true;
   const jointMaterials = {left:material('#3b82f6'),right:material('#ef4444'),center:boneMaterial};
-  if(bannerMode)Object.values(jointMaterials).forEach(surface=>{surface.transparent=true;});
+  if(bannerMode||snapshot)Object.values(jointMaterials).forEach(surface=>{surface.transparent=true;});
   const boneRadius = .012, jointRadius = .022;
   const cylinder = new THREE.CylinderGeometry(1,1,1,16);
+  const surface=createPoseSurface(boneRadius,jointRadius);
   const sphere = new THREE.SphereGeometry(jointRadius,24,16);
   const axis = new THREE.Vector3(0,1,0);
   const bones = edges.map(([a,b])=>{
-    const mesh = new THREE.Mesh(cylinder,boneMaterial); mesh.castShadow = mesh.receiveShadow = true;if(bannerMode)mesh.renderOrder=2;scene.add(mesh);return {a,b,mesh};
+    const mesh = bannerMode?new THREE.Mesh(cylinder,boneMaterial):surface.bone(boneMaterial); mesh.castShadow = mesh.receiveShadow = true;if(bannerMode)mesh.renderOrder=2;scene.add(mesh);return {a,b,mesh};
   });
   const dots = names.map((name,i)=>{
-    const mesh = new THREE.Mesh(sphere,jointMaterials[name.startsWith('left_')?'left':name.startsWith('right_')?'right':'center']);
+    const jointMaterial=jointMaterials[name.startsWith('left_')?'left':name.startsWith('right_')?'right':'center'];
+    const mesh = bannerMode?new THREE.Mesh(sphere,jointMaterial):surface.joint(jointMaterial);
     mesh.castShadow = mesh.receiveShadow = true;if(bannerMode)mesh.renderOrder=3; scene.add(mesh); return mesh;
   });
+  let referenceGroup,referenceDots=[],selectedPoseOpacity=1;
+  if(snapshot){
+    // Use the same transform for both poses: no independent centering or scaling.
+    // The reference keeps depth testing but cannot obscure the selected pose.
+    const referenceMaterial=color=>{
+      const surface=material(color);surface.transparent=true;surface.opacity=.5;
+      surface.depthWrite=false;return surface;
+    };
+    const referenceMaterials={left:referenceMaterial('#3b82f6'),right:referenceMaterial('#ef4444'),center:referenceMaterial(poseColors.reference)};
+    const referencePose=frames[referenceFrame];
+    const side=name=>name.startsWith('left_')?'left':name.startsWith('right_')?'right':'center';
+    referenceGroup=new THREE.Group();referenceGroup.name='reference-pose';scene.add(referenceGroup);
+    for(const [a,b] of edges){
+      if(!valid(referencePose[a])||!valid(referencePose[b]))continue;
+      const from=vector(referencePose[a]),to=vector(referencePose[b]),delta=to.clone().sub(from),length=delta.length();
+      if(length<=1e-8)continue;
+      const mesh=surface.bone(referenceMaterials.center);
+      surface.placeBone(mesh,from,to);
+      referenceGroup.add(mesh);
+    }
+    names.forEach((name,index)=>{
+      if(!valid(referencePose[index]))return;
+      const mesh=surface.joint(referenceMaterials[side(name)]);
+      surface.placeJoint(mesh,vector(referencePose[index]));referenceDots[index]=mesh;referenceGroup.add(mesh);
+    });
+
+  }
+  function setSnapshotPoseOpacity(referenceOpacity,selectedOpacity,jointHighlights=[]){
+    if(!snapshot)return;
+    selectedPoseOpacity=selectedOpacity;
+    referenceGroup.visible=referenceOpacity>.001;
+    referenceGroup.traverse(object=>{if(object.material){object.material.opacity=referenceOpacity;object.material.transparent=true;object.material.depthWrite=referenceOpacity>.999;object.castShadow=referenceOpacity>.999;}});
+    for(const object of [...bones.map(b=>b.mesh),...dots.filter(Boolean)]){
+      object.material.transparent=true;object.material.opacity=selectedOpacity;object.material.depthWrite=selectedOpacity>.999;object.castShadow=selectedOpacity>.999;
+    }
+    for(const highlight of jointHighlights){
+      const base=highlight.pose==='reference'?referenceOpacity:selectedOpacity;
+      const meshes=highlight.pose==='reference'?referenceDots:dots;
+      for(const name of highlight.joints){
+        const mesh=meshes[indexes[name]];if(!mesh)continue;
+        const opacity=base+(1-base)*Math.max(0,Math.min(1,highlight.strength));
+        mesh.material.opacity=Math.max(mesh.material.opacity,opacity);mesh.material.depthWrite=opacity>.999;
+      }
+    }
+  }
   // Prebuild timestamped solid trail segments; reveal only samples reached by playback.
   const trails=[];
   const trailCylinder=new THREE.CylinderGeometry(1,1,1,8);
@@ -460,7 +462,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     place(viewerRing,viewerMarker,viewerConnection,camera.position);
     viewerCross.position.copy(viewerMarker.position);
   }
-  const enablePan=!bannerMode&&Object.keys(cameraVideos).length>0;
+  const enablePan=!bannerMode;
   let panX=0,panY=0;
   // Frame the pose and its motion, independently of camera/plane extents.
   distanceScale=1;
@@ -471,19 +473,21 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     if(!w||!h)return;
     if(w!==renderWidth||h!==renderHeight){renderer.setSize(w,h,false);renderWidth=w;renderHeight=h;}
     camera.aspect=w/h;
-    camera.zoom=zoom;
+    camera.zoom=zoom*snapshotFocusZoom;
     // Shift the projection for panning, leaving the world-space orbit center fixed.
     if(enablePan)camera.setViewOffset(w,h,-panX,-panY,w,h);
     // Fit the complete motion using the narrower viewport angle.
     camera.fov=45;
     const verticalHalfFov=THREE.MathUtils.degToRad(camera.fov/2);
     const halfFov=Math.min(verticalHalfFov,Math.atan(Math.tan(verticalHalfFov)*camera.aspect));
-    const distance=bound*distanceScale/(Math.sin(halfFov)*.84);
+    let distance=bound*distanceScale/(Math.sin(halfFov)*.84);
+    const cameraTarget=snapshotFocus.clone();
+    if(snapshotPairFocus){const fit=fitPairCamera(snapshotPairFocus,vector,halfFov,distance,cameraTarget);cameraTarget.copy(fit.target);distance=fit.distance;camera.zoom=zoom;}
     camera.far=Math.max(100,distance+bound*5);
     const minimumCameraY=floor.position.y+.0125+.02;
     if(selectedView==='free-view')pitch=Math.max(pitch,Math.asin(Math.max(-.999,Math.min(.999,minimumCameraY/distance))));
     camera.position.set(distance*Math.sin(yaw)*Math.cos(pitch),distance*Math.sin(pitch),distance*Math.cos(yaw)*Math.cos(pitch));
-    camera.up.set(0,1,0);camera.lookAt(0,0,0);camera.fov=45;
+    camera.position.add(cameraTarget);camera.up.set(0,1,0);camera.lookAt(cameraTarget);camera.fov=45;
     cameraDecorations.forEach(object=>{object.visible=bannerMode||object.userData.cameraView===selectedView?false:selectedView==='free-view'||(cameraFlight&&cameraFlight.progress<.75);});
     const preset=cameraPresets.get(selectedView);
     if(preset){
@@ -503,7 +507,12 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       camera.zoom=THREE.MathUtils.lerp(cameraFlight.zoom,camera.zoom,t);
       if(enablePan)camera.setViewOffset(w,h,THREE.MathUtils.lerp(cameraFlight.offsetX,-panX,t),THREE.MathUtils.lerp(cameraFlight.offsetY,-panY,t),w,h);
     }
-    if(!bannerMode)constrainCameraAboveGround(camera,minimumCameraY);
+    if(snapshotCamera){
+      const direction=vector(snapshotCamera.direction.map((v,i)=>v+center[i])).normalize();
+      const up=vector(snapshotCamera.up.map((v,i)=>v+center[i])).normalize();
+      camera.position.copy(cameraTarget).addScaledVector(direction,distance);camera.up.copy(up);camera.lookAt(cameraTarget);
+
+    }else if(!bannerMode)constrainCameraAboveGround(camera,minimumCameraY);
     camera.updateProjectionMatrix();
     updateDistanceGuides();
     const belowGround=camera.position.y<floor.position.y+.0125;
@@ -513,13 +522,13 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     grid.material.depthWrite=!belowGround;
     const pose=frames[frame];
     for(const {a,b,mesh} of bones){
-      mesh.visible=valid(pose[a])&&valid(pose[b]);if(!mesh.visible)continue;
+      mesh.visible=selectedPoseOpacity>.001&&valid(pose[a])&&valid(pose[b]);if(!mesh.visible)continue;
       const from=vector(pose[a]),to=vector(pose[b]),delta=to.clone().sub(from),length=delta.length();
       mesh.visible=length>1e-8;if(!mesh.visible)continue;
-      mesh.position.copy(from).add(to).multiplyScalar(.5);
-      mesh.quaternion.setFromUnitVectors(axis,delta.normalize());mesh.scale.set(boneRadius,length,boneRadius);
+      if(bannerMode){mesh.position.copy(from).add(to).multiplyScalar(.5);mesh.quaternion.setFromUnitVectors(axis,delta.normalize());mesh.scale.set(boneRadius,length,boneRadius);}
+      else surface.placeBone(mesh,from,to);
     }
-    dots.forEach((mesh,i)=>{if(!mesh)return;mesh.visible=valid(pose[i]);if(mesh.visible)mesh.position.copy(vector(pose[i]));});
+    dots.forEach((mesh,i)=>{if(!mesh)return;mesh.visible=selectedPoseOpacity>.001&&valid(pose[i]);if(mesh.visible){if(bannerMode)mesh.position.copy(vector(pose[i]));else surface.placeJoint(mesh,vector(pose[i]));}});
     for(const trail of trails){
       let low=0,high=trail.frames.length;
       while(low<high){const middle=(low+high)>>>1;if(trail.frames[middle]<=frame)low=middle+1;else high=middle;}
@@ -587,10 +596,13 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       overlay.pointGeometry.setDrawRange(0,count);dots.needsUpdate=true;overlay.pointGeometry.computeBoundingSphere();
     }
     canvas.dataset.frame=String(frame);
-    renderer.render(scene,camera);
+    renderer.render(scene,camera);snapshotOverlayView?.(camera,w,h);
   }
-  const pointers=new Map();
   const clampZoom=value=>Math.max(.4,Math.min(4,value));
+  if(snapshot){
+    mediaCleanup.push(mountViewInput(canvas,ratio=>{zoom=clampZoom(zoom*ratio);draw();},(dx,dy)=>{panX+=dx;panY+=dy;draw();}));
+  }else{
+  const pointers=new Map();
   const pinchDistance=()=>{const [a,b]=[...pointers.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
   canvas.onpointerdown=e=>{
     if(cameraFlight)return;
@@ -623,6 +635,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     // Trackpad pinch arrives as a Ctrl+wheel gesture in supporting browsers.
     zoom=clampZoom(zoom*Math.exp(-e.deltaY*(e.ctrlKey ? .01 : .001)));draw();
   },{passive:false});
+  }
   const resizeObserver=new ResizeObserver(draw);resizeObserver.observe(canvas); draw();
   let animationHandle,disposed=false,playbackEnabled=true;
   const controller={
@@ -662,6 +675,18 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     setFrame(value){frame=Math.max(start,Math.min(end,Math.floor(value)));draw();},
     dispose(){cancelAnimationFrame(flightHandle);mediaCleanup.forEach(cleanup=>cleanup());disposed=true;cancelAnimationFrame(animationHandle);resizeObserver.disconnect();renderer.dispose();const geometries=new Set(),materials=new Set();scene.traverse(object=>{if(object.geometry)geometries.add(object.geometry);if(object.material)materials.add(object.material);});geometries.forEach(g=>g.dispose());materials.forEach(m=>{m.map?.dispose();m.dispose();});},
   };
+  if(snapshot){
+    const playback=mountSnapshotExplanation(card,{id,poseData,metrics:snapshotMetrics,entry,scene,toWorld:vector,setPoses:setSnapshotPoseOpacity,draw,canvas,
+      setCamera:value=>{snapshotCamera=value;},setPairFocus:value=>{snapshotPairFocus=value;},
+      setFocus:(origin,amount)=>{snapshotFocus.copy(vector(origin)).multiplyScalar(amount);snapshotFocusZoom=1+2.4*amount;},
+    });
+    snapshotOverlayView=playback.updateView;draw();
+    mediaCleanup.push(()=>playback.dispose());
+  }
+  if(snapshot){
+    await new Promise(resolve=>requestAnimationFrame(()=>{draw();resolve();}));
+    card.querySelector('.snapshot-placeholder')?.remove();card.setAttribute('aria-busy','false');
+  }
   if(!autoPlay)return controller;
   // Loop the selected motion at its recorded frame rate. Only the current,
   // visible carousel card renders; hidden cards retain their playback position.

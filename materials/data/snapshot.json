@@ -1,37 +1,10 @@
 {
-  "03": {
-    "duration": 3,
-    "stay": 0.5,
-    "joints": [
-      "golf_club_head"
-    ]
-  },
-  "04": {
-    "duration": 3,
-    "stay": 0.5,
-    "joints": [
-      "golf_club_head"
-    ]
-  },
-  "05": {
-    "duration": 3,
-    "stay": 0.5,
-    "joints": [
-      "golf_club_head"
-    ]
-  },
-  "06": {
-    "duration": 3,
-    "stay": 0.5,
-    "joints": [
-      "golf_club_head"
-    ]
-  },
-  "12": {
-    "duration": 3,
-    "stay": 0.5,
-    "joints": [
-      "golf_club_head"
-    ]
+  "kinematic": {
+    "torso_turn_bend_tilt": {
+      "video": "00",
+      "frame": 300,
+      "duration": 30,
+      "stay":15
+    }
   }
 }

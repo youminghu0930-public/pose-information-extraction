@@ -1,4 +1,5 @@
-import {parseSnapshotEntries} from '../snapshot-config.js';
+import {explainSnapshot} from '../explain/index.js';
+import {parseSnapshotEntries,resolveSnapshot} from '../snapshot-config.js';
 import {prepareVideos} from './prepare-videos.mjs';
 import fs from 'node:fs/promises';
 const catalog=prepareVideos();
@@ -8,13 +9,15 @@ if(content.sections.map(s=>s.id).join()!=='abstract,introduction,method,results,
 const snapshots=parseSnapshotEntries(await fs.readFile(new URL('materials/data/snapshot.json',root),'utf8'));
 for(const [id,entry] of snapshots){
  if(!/^[\w-]+$/.test(id))throw new Error('Invalid snapshot swing ID');
- const stay=entry.stay??0;
- if(!Number.isFinite(stay)||stay<0)throw new Error(`Swing ${id}: snapshot stay must be a nonnegative number of seconds`);
- if(!Number.isFinite(entry.duration)||entry.duration<=0)throw new Error(`Swing ${id}: snapshot duration must be a positive number of seconds`);
+ const metrics=JSON.parse(await fs.readFile(new URL(`materials/data/metrics/${id}.json`,root),'utf8'));
+ const pose=JSON.parse(await fs.readFile(new URL(`materials/data/3d_results/${id}.json`,root),'utf8'));
+ resolveSnapshot(entry,metrics,pose.reconstruction.length);
+ const explanation=explainSnapshot(pose,metrics,entry);
+ if(explanation.items.some(item=>!item.matches))throw new Error(`Swing ${id}: explanation does not match exported metrics`);
 }
 await fs.rm(new URL('dist/',root),{recursive:true,force:true});
 await fs.mkdir(new URL('dist/',root),{recursive:true});
-for(const file of ['index.html','styles.css','main.js','hero-banner.js','snapshot-3d.js','pose-structure.js','snapshot-config.js','snapshot-framing.js','camera-flight.js','frame-seeker.js','frame-keys.js','frame-timing.js','video-viewer.js','video-recovery.js','.nojekyll','vendor','materials/content.json','materials/data/credits.json','materials/data/snapshot.json','materials/data/videos.json','materials/data/3d_results']){
+for(const file of ['index.html','styles.css','main.js','hero-banner.js','snapshot-3d.js','pose-structure.js','pose-surface.js','snapshot-config.js','snapshot-framing.js','camera-flight.js','frame-seeker.js','frame-keys.js','frame-timing.js','video-viewer.js','video-recovery.js','.nojekyll','explain','vendor','materials/content.json','materials/data/credits.json','materials/data/snapshot.json','materials/data/videos.json','materials/data/3d_results','materials/data/metrics']){
  const target=new URL(`dist/${file}`,root);await fs.mkdir(new URL('./',target),{recursive:true});await fs.cp(new URL(file,root),target,{recursive:true});
 }
 for(const clip of catalog)for(const file of [clip.sync,...clip.views.flatMap(v=>[v.src,v.src+'.frames.json'])]){

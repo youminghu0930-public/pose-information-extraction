@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {resolveSnapshot,parseSnapshotEntries} from '../snapshot-config.js';
 import {discoverVideoCatalog,validateSync} from '../scripts/video-catalog.mjs';
 const read=file=>JSON.parse(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'));
 test('all supplied swings have aligned reconstruction and synchronization',()=>{
@@ -16,8 +17,9 @@ test('invalid or out-of-range sync mappings are rejected',()=>{
  sync.mapping.b[2]=3;assert.throws(()=>validateSync(sync,views));
 });
 test('snapshot highlights reference available reconstructed swings',()=>{
- for(const [id,entry] of Object.entries(read('materials/data/snapshot.json'))){
+ for(const [id,entry] of parseSnapshotEntries(fs.readFileSync(new URL('../materials/data/snapshot.json',import.meta.url),'utf8'))){
  const frames=read(`materials/data/3d_results/${id}.json`).reconstruction;
- assert.ok(frames.length>0);assert.ok(entry.duration>0);assert.ok(entry.stay>=0);
+ const snapshot=resolveSnapshot(entry,read(`materials/data/metrics/${id}.json`),frames.length);
+ assert.equal(snapshot.frame,entry.frame);assert.ok(frames[snapshot.referenceFrame]);
  }
 });

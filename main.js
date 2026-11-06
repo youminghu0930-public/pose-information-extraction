@@ -116,9 +116,14 @@ async function renderPage() {
     section.append(heading, body);
     if (content.id === 'abstract') {
       const viewer = element('div', undefined, 'pose-snapshots');
+      viewer.setAttribute('aria-busy','true');
+      const previewLoading=element('div',undefined,'snapshot-loading-region');
+      previewLoading.append(element('p','Loading preview…','snapshot-placeholder'));
+      previewLoading.setAttribute('role','status');
+      viewer.append(element('h3','3D snapshot highlights','result-subheading media-heading'),previewLoading);
       section.append(viewer);
       import('./snapshot-3d.js').then(module => module.mountSnapshots(viewer)).catch(error => {
-        console.error(error); viewer.textContent = 'Unable to load 3D snapshots.';
+        console.error(error);viewer.setAttribute('aria-busy','false');const status=viewer.querySelector('.snapshot-placeholder');if(status)status.textContent='Preview unavailable. Reload to retry.';else viewer.textContent='Unable to load 3D snapshots.';
       });
     }
     if(content.id==='results'){

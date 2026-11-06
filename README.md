@@ -1,6 +1,6 @@
 # Pose Information Extraction
 
-Local, buildless portfolio page using the Golf Swing 3D Reconstruction template. It retains the typography, responsive left navigation, six sections (Abstract, Introduction, Method, Results, Discussion, Conclusion), and 3D snapshot carousel. Section copy is an initial scaffold for this project.
+Local, buildless portfolio page using the Golf Swing 3D Reconstruction template. It retains the typography, responsive left navigation, six sections (Abstract, Introduction, Method, Results, Discussion, Conclusion), and 3D metric snapshots with a left-side navigator. Section copy is an initial scaffold for this project.
 
 ## Run
 
@@ -18,9 +18,9 @@ Open http://127.0.0.1:8008. The first run prepares browser-compatible H.264 vide
 - `materials/data/3d_results/<id>.json`: reconstruction frames, exported `joints` list, and estimated camera calibration, preserving the supplied flat folder structure.
 - `materials/data/videos/<id>/{face-on,down-the-line}.mp4`: original recordings.
 - `materials/data/videos/<id>/sync.json`: shared timeline mappings to raw frame indices for both recordings.
-- `materials/data/snapshot.json`: highlight duration, hold time, and trail joints. An omitted range uses the complete reconstruction.
+- `materials/data/snapshot.json`: metric demos in the nested format `{type_name: {subtype_name: {video: video_name, frame: frame_index, duration: seconds, stay: seconds}}}`. Each frame index is a zero-based reconstruction index; the reference comes from the matching metrics file’s `meta.ref_frame_id`.
 - `materials/data/credits.json`: source links keyed by swing ID.
-- `materials/data/metrics/`: reserved for later UI integration; unchanged and unused by the current viewer.
+- `materials/data/metrics/`: metric exports; snapshot comparisons use `meta.ref_frame_id` and validate the selected type/subtype. The modular explanation library visualizes each selected measurement.
 - `materials/data/videos.json`: generated video catalog.
 - `materials/data/previews/`: ignored generated H.264 videos and frame timestamp sidecars.
 
@@ -34,10 +34,123 @@ node scripts/build-site.mjs
 node scripts/serve.mjs --dist
 ```
 
-The build generates a standalone `dist/` with only the required presentation assets. Metrics remain in the source materials until their UI is implemented.
+The build generates a standalone `dist/` with only the required presentation assets. Metrics files are included for static snapshot comparisons.
 
 ## Git workflow
 
 Work on a feature branch, run checks and the static build, then commit source and materials. Generated previews and `dist/` are ignored. The included GitHub Actions workflow tests and builds on pushes to `main`/`master` and deploys the static artifact to GitHub Pages. In repository Settings → Pages, select **GitHub Actions** as the source. Manual deployment is also available with `workflow_dispatch`.
 
 Bone connections in `pose-structure.js` follow Ideaslab `IL_H36M_POSE + GOLFCLUB`, resolved against each file’s joint names. Floor placement, body centering, joint markers, and trails also use these names.
+
+## Visual explanation library
+
+`explain/` mirrors the calculation code while keeping domain logic separate from UI:
+
+- `names.js`: shared display names for types, subtypes, components, joints and axes. Raw metric keys are unchanged.
+- `math.js`: vector projection, signed rotation, inclination and the Y–X–Z torso rotation decomposition.
+- `context.js`: exported alignment metadata, joint lookup and shared shoulder/hip/spine feature extraction. Helpers convert between the normalized metric frame and original source coordinates.
+- `visuals.js`: reusable recipes for directions, measurement planes, projected vectors and angle arcs.
+- `metrics/kinematic.js`: torso rotation and hip/shoulder rotation around the lower spine.
+- `metrics/geometric.js`: shoulder/hip direction, spine lean, and spine direction/twist.
+- `metrics/position.js`: normalized hip displacement and its three components.
+- `index.js`: registry, value selection, recomputation and export agreement checks.
+- `ui/scene.js`: Three.js geometry/label rendering and cleanup, independent of the metric subtype.
+- `choreography/construction.js`: reusable joint-pair axis construction stages, holds, and camera pauses; accepts a frame definition and display label.
+- `choreography/intrinsic-rotation.js`: Y–X–Z frame rotation, camera alignment, axis highlighting, angle sectors, and reset sampling.
+- `choreography/torso.js`: composes the reference and torso construction with the shared rotation sequence; no DOM or rendering dependencies.
+- `ui/snapshot.js`: presentation registry and viewer adapter. The pose viewer mounts one explanation and forwards camera updates without branching on metric subtype.
+- `ui/playback.js`: shared visibility-aware clock, pause/resume, reduced-motion initialization, and lifecycle cleanup for both players.
+- `ui/dom.js`: shared DOM and accessible play-button helpers.
+- `ui/timeline.js`: reusable animation phases and sequences.
+- `ui/panel.js`: shared component selectors, automatic playback, pause/replay and results.
+- `ui/labels.js`: readable callouts that follow the animated geometry.
+
+Snapshots choose their recipe with `type` and `subtype`. Watch directions form, vectors project onto planes, and signed angle arcs sweep to their results on the static reference/selected pose comparison. Playback automatically moves through the components, sharing common construction steps. Select a component to replay it alone, or use pause/replay. Animations stop advancing offscreen and when the tab is hidden; reduced-motion preferences start with a static result. Angle explanations show reference-based global orientation where used, without scale or translation steps. Position explanations identify the fixed reference-ankle midpoint origin, normalization, and reference-hip displacement.
+
+All eight exported subtypes are supported (seven angular and one position subtype). To add another subtype, add a recipe to the matching metric family and labels to `names.js`; return named values and component step lists containing the shared visual primitives. No changes to the panel or 3D renderer are needed. Build validation rejects a selected snapshot whose recomputed result disagrees with its exported metric. Tests compare all components at every frame in every supplied swing, including signed angles and inverse alignment.
+
+### Torso coordinate-frame animation
+
+The torso example uses `choreography/axis-frame.js` for both coordinate-frame constructions. Reference inputs are reference-frame ankles and global up `[0,-1,0]`; torso inputs are selected-frame shoulders and the upper-spine direction, with the same fallback order as the Python code. Positive left is right joint → left joint, matching the saved orientation.
+
+`choreography/torso.js` provides a deterministic, seekable sequence: both skeletons → reference-only → grow/shrink lateral arrow → up arrow → fixed-head orthogonalization → growing red plane → forward arrow → current-only → repeat construction for torso → fade → align reference origin and length → intrinsic Y/X/Z rotations → coincident frames. Violet/cyan/magenta encode X/Y/Z throughout. The target axes use wider translucent lines, leaving the solid reference axes visible inside at completion. Values animate only in their respective rotation steps.
+
+`ui/axis-frame.js` renders both frames using the same flat-arrow/plane primitives; `ui/torso-player.js` connects playback, pose fades, scrubber and live values. Tests verify the reference frame against `meta.orientation`, constant-length orthogonalization, fade stages, and final axis coincidence across all swings.
+
+Axis-construction vocabulary follows the requested convention: **head** is the starting/anchored end and **tail** is the arrow-tip end. Shrinking moves the head from the right joint to the midpoint while the tail stays at the left joint. Orthogonalization rotates the tail around the fixed midpoint head, preserving length. All completed axes extend outward from their common origin.
+
+The latest torso presentation uses flat projected arrows (2px reference, 4.5px translucent target), a dedicated violet/cyan/magenta axis palette in `explain/palette.js`, transparent poses during construction, and short holds between actions. Construction planes remain full-size while the forward arrow grows and then fade by opacity. Camera-only stages align the optical axis with each upcoming rotation axis and settle before the value starts moving. A same-color transparent sector grows with each signed angle. Values are stacked at the right; snapshot titles and frame-index labels are omitted.
+
+Snapshot previews reserve their loading window immediately, before importing the 3D module, and retain card placeholders until the first layout-sized render. Component removal shows the left/up angle as a pie sector, viewed face-on; at 90° it becomes a square with an outlined right-angle marker. The fixed head and arrow length remain unchanged during the correction.
+
+### Joint-pair vector convention
+
+`choreography/joint-pair.js` owns the standard focus → stretch → release → align sequence. The pose remains translucent while only the referenced joint dots smoothly become solid in their existing colors. The arrow starts after the focus fade; the dots return to pose opacity after stretching completes; only then does the head move to its specified origin. Joint dots have independent materials, so emphasizing one pair never brightens other joints or the bones.
+
+The reference ankle pair, selected shoulder pair, and selected upper-spine pair use this process. The up vector is first drawn between the actual torso/clavicle joints before moving to the coordinate-frame origin. Shared metric recipes declare joint-pair metadata with `jointVector`; the generic explanation renderer applies the same emphasis timing to those sources, sequentially when a step references multiple pairs. Derived global axes and displacement vectors do not invent joint-pair highlights.
+
+### Adding explanation behavior
+
+Keep exported metric calculations and recipe selection in `metrics/`. Define joint inputs in the frame/feature layer; reuse construction and joint-pair choreography rather than copying its emphasis/stretch/release/align stages. Choreography returns deterministic sampled state and must not create DOM or Three.js objects. Renderers consume that state and own their geometry cleanup. Players connect controls to the shared playback clock. Register a specialized presentation in `ui/snapshot.js` only when the common primitive player cannot express it; `snapshot-3d.js` should not need new subtype branches.
+
+The shared clock is tested for pause, offscreen, hidden-tab, inert-card, and disposal behavior. The choreography regression tests retain the existing poses, stage durations, camera alignment, and final metric values through refactors.
+
+### Joint-pair close-ups and metric headers
+
+`choreography/pair-camera.js` provides a perpendicular view of each joint pair, with both the original joints and aligned arrow endpoints included in the framing bounds. Each pair now has a camera-in stage with a settling interval before joint emphasis and growth, followed by a camera-out stage after alignment. The generic primitive pipeline uses the same camera-first rule via `jointPairPresentation`. `ui/camera-framing.js` fits those bounds with padding using the narrower viewport angle. User gestures remain offsets from the explanation camera.
+
+`ui/arrow-shape.js` supplies one closed, flat silhouette for both specialized and generic arrows. Its shaft ends at the arrowhead base, and short arrows scale their shaft and head together without a contrasting outline. `ui/header.js` shows only the larger metric name and a plain-language description from `names.js`; swing IDs and frame indices are omitted.
+
+Axis arrows retain their standard colors, reference/target widths and transparency throughout playback; halos, active-axis thickening, dimming and highlight rings are omitted. `pose-surface.js` treats the skeleton as separate surfaces: complete joint balls and open-ended cylindrical sheets attached at their rims. Both sides of the sheets and balls render when translucent, so overlapping parts remain visible through one another. Joint caps are intact; there are no screen-space overlap masks or artificial seam-normal blending.
+
+The snapshot header contains the metric title and its fixed plain-language explanation. Dynamic stage captions are omitted from the visible UI. The metric navigator sits to the left of the player on desktop.
+
+### Snapshot metric navigator
+
+Configure demos by metric family, subtype, and reconstruction video name:
+
+```json
+{
+  "kinematic": {
+    "torso_turn_bend_tilt": {"00": 300},
+    "hip_turn_on_spine_plane": {"03": 200}
+  },
+  "geometric": {
+    "spine_bend_tilt": {"00": 300}
+  }
+}
+```
+
+The example illustrates the format; the saved configuration retains the existing torso demo. Add your other demo choices to populate the navigator. Reusing a video across metrics is supported, and a subtype can have multiple video/frame demos. The navigator groups entries by metric family and uses the shared display-name mapping. It stays on the left on desktop and moves above the viewer on narrow screens. Carousel arrows, dots, rotating cards, and background scenes are removed.
+
+`ui/snapshots.js` owns scene selection/loading; `ui/navigator.js` renders the metric list. `ui/selection.js` serializes scene creation, disposes the previous scene, and discards stale asynchronous selections. Only the selected metric retains a live renderer. Loading and error states keep space reserved for the window. Parser/build checks validate the nested format, authored order, duplicate keys, available metric/video data and frame bounds.
+
+`ui/arrow-projection.js` is shared by all explanation arrows. As an arrow comes within 18° of the camera axis, its projected shape smoothly cross-fades to a fixed-size direction symbol: a dot means toward the viewer and a cross means away. Coordinate-frame arrows also retain their axis letter. The true endpoints, measurement axes, and camera choreography remain unchanged.
+
+`choreography/cross-product.js` supplies an oblique close-up shared by reference and selected axis construction. The camera settles before the plane grows, holds the full input plane and perpendicular result in view through the forward-arrow growth and plane fade, then returns smoothly to the pose view. Bounds include all plane corners and the full result vector.
+
+Each final intrinsic rotation displays two same-color pie surfaces, one for each basis direction that moves around the highlighted axis. Both start from that step’s pre-rotation frame and sweep through the same signed angle; the rotation axis itself gets no pie. `createRotationSectors` reuses the single-sector renderer for this pair.
+
+Snapshot interaction supports screen-space panning: drag shifts the projected view without changing camera position, orientation, or the scripted explanation path. Scroll/pinch changes zoom, and clicking or tapping the canvas toggles explanation playback. Space/Enter on the focused canvas also toggles playback. The canvas exposes its play/pause state to accessibility tools. Separate play/restart buttons are removed; the timeline and component selectors remain. `ui/window-input.js` suppresses click-to-play after a drag or pinch, so zooming cannot accidentally toggle playback. Results video controls retain their existing behavior.
+
+`ui/playback-feedback.js` matches the referenced recording: each window click briefly shows the action’s play/pause icon on a translucent dark circle, then scales and fades away. Repeated clicks replace the previous feedback animation; there is no permanent central button. Reduced-motion mode uses a short fade without scaling.
+
+Axis-set construction uses `choreography/construction-camera.js` to keep one padded set of bounds for the complete construction, including source joint pairs, the plane, and all three axes. The camera enters that close-up once, stays close through the small steps, and pulls back only after the forward vector and plane fade finish. Component removal and the cross product use smooth in-place view changes with the same target and framing distance.
+
+### Overall explanation duration
+
+Set the demo video and frame within each metric subtype. `duration` controls animation time in seconds; `stay` sets the completion review time in seconds:
+
+```json
+{
+  "kinematic": {
+    "torso_turn_bend_tilt": {"video": "00", "frame": 300, "duration": 5, "stay": 2}
+  }
+}
+```
+
+All construction actions, camera movements, rotations, and opening/reset transitions keep their original relative timing. Omit duration to retain the authored tempo. Duration must be a positive finite number; fractional seconds are supported. It is configuration metadata and never becomes a navigator entry. Paused/offscreen time does not count toward active playback time.
+
+`explain/timing.js` scales complete timelines. The deterministic torso choreography and the shared primitive-recipe player both use it, including the initial two-pose view. The scrubber follows the configured total duration.
+
+With `stay` specified, the completion review is excluded from proportional animation scaling. For torso rotation, the camera pulls back to reveal the selected pose, the reference axes fade out and reappear reset while the numbers zero immediately, and turn/bend/tilt replay from one close global view, with a short pause before each rotation. This entire review fits `stay` (two seconds in the example), then the scene resets. `stay: 0` skips the review. Other metric recipes retain a completed-result hold. Omitting timing fields preserves the original tempo.
