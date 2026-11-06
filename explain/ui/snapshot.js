@@ -1,3 +1,4 @@
+import {mountLateralTurnTiltPlayer} from './lateral-turn-tilt-player.js';
 import {subtypeDescriptions} from '../names.js';
 import {pairCamera} from '../choreography/pair-camera.js';
 import {jointPairPresentation} from '../choreography/joint-pair.js';
@@ -12,6 +13,7 @@ import {make} from './dom.js';
 
 // Presentation dispatch belongs to the explanation library, not the pose viewer.
 const players=new Map([
+ ['geometric.shoulder_turn_tilt',mountLateralTurnTiltPlayer],
  ['kinematic.hip_turn_on_spine_plane',mountSpinePlanePlayer],
  ['kinematic.shoulder_turn_on_spine_plane',mountSpinePlanePlayer],
  ['kinematic.torso_turn_bend_tilt',mountTorsoPlayer],

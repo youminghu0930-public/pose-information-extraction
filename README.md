@@ -164,3 +164,9 @@ The hip demo uses a dedicated deterministic choreography in `explain/choreograph
 ### Joint-pair stretch camera rule
 
 Before a joint-pair vector stretches, the camera settles into the authored view. That view is adjusted only when the vector is nearly aligned with the camera axis. Screen-left/up placement is not enforced. No roll, endpoint visibility, and the original shared close-up are preserved.
+
+### Shoulder-line turn and tilt
+
+`geometric.shoulder_turn_tilt` has a dedicated visual sequence built from the shared reference prelude and coordinate player. It stretches the right-to-left shoulder vector, creates the reference horizontal plane at the shoulder midpoint, and shows its projection while retaining and then fading the original. Turn rotates reference X around global up to the horizontal projection; tilt rotates that projection toward the original shoulder direction in its difference plane. Magenta angle pies accompany both signed measurements. The camera stays upright, settles before stretches and rotations, and uses the stronger shoulder broadside constraint. The completion review holds the final result before resetting and replaying both measurements within `stay`.
+
+`reference-prelude.js` now supplies the identical reference construction to both spine-plane and shoulder-line demos; `direction-rotation.js` handles horizontal turn and signed elevation independently of presentation.

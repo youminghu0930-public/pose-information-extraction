@@ -1,0 +1,71 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {explainSnapshot} from '../explain/index.js';
+import {createLateralTurnTiltChoreography} from '../explain/choreography/lateral-turn-tilt.js';
+import {sub,unit,dot} from '../explain/math.js';
+const read=p=>JSON.parse(fs.readFileSync(new URL('../materials/data/'+p,import.meta.url),'utf8'));
+const close=(a,b)=>a.forEach((v,i)=>assert.ok(Math.abs(v-b[i])<1e-8,`${a} != ${b}`));
+const sample=(plan,id,p)=>{const s=plan.segments.find(s=>s.id===id);return plan.sample(s.start+(s.motionDuration??s.duration)*p);};
+function setup(file='00.json',frame=300){const data=read('3d_results/'+file),metrics=read('metrics/'+file);return {data,metrics,plan:createLateralTurnTiltChoreography(explainSnapshot(data,metrics,{frame,type:'geometric',subtype:'shoulder_turn_tilt',duration:30,stay:5}))};}
+test('shoulder turn and tilt match exported measurements and align their vectors',()=>{
+ for(const file of fs.readdirSync(new URL('../materials/data/3d_results/',import.meta.url)).filter(f=>f.endsWith('.json'))){
+  const data=read('3d_results/'+file);
+  for(const frame of [0,Math.floor(data.reconstruction.length/2),data.reconstruction.length-1]){
+   const {plan,metrics}=setup(file,frame);assert.equal(plan.duration,35000);
+   const end=sample(plan,'tilt',1);
+   close([end.values.turn,end.values.tilt],[metrics.metrics.geometric.shoulder_turn_tilt.turn[frame],metrics.metrics.geometric.shoulder_turn_tilt.tilt[frame]]);
+   close(end.referenceAxes.x.to,end.torsoAxes.x.to);
+   const turn=sample(plan,'turn',1);close(turn.referenceAxes.x.to,turn.torsoAxes.x.to);
+   assert.ok(Math.abs(dot(sub(turn.torsoAxes.x.to,turn.torsoAxes.x.from),plan.frames.reference.y))<1e-8);
+  }
+ }
+});
+test('the shoulder pair stretches broadside and projection keeps then fades the original',()=>{
+ const {plan}=setup(),grow=sample(plan,'lateral-grow',.5);
+ assert.deepEqual(grow.jointHighlights[0].joints,['right_shoulder','left_shoulder']);
+ assert.ok(Math.abs(dot(plan.frames.torso.x,grow.camera.direction))<.51);
+ const projected=sample(plan,'projection',1);assert.ok(projected.originalTorsoAxes);
+ assert.equal(sample(plan,'original-fade',1).originalTorsoAxes,undefined);
+ const angle=plan.segments.find(s=>s.id==='projection-angle');assert.ok(angle.duration>angle.motionDuration);
+});
+test('review holds the final result first and the full timeline stays finite and upright',()=>{
+ const {plan}=setup(),finish=plan.segments.find(s=>s.id==='finish'),end=sample(plan,'tilt',1);
+ const held=plan.sample(finish.start+500);
+ for(const key of ['values','camera','referenceAxes','torsoAxes','plane','pairFocus'])assert.deepEqual(held[key],end[key]);
+ for(let t=0;t<=plan.duration;t+=43){
+  const state=plan.sample(t);assert.deepEqual(state.camera.up,plan.frames.reference.y);
+  assert.ok(Object.values(state.values).every(Number.isFinite));
+  for(const key of ['referenceAxes','torsoAxes'])if(state[key])for(const axis of ['x','y','z'])if(state[key][axis])assert.ok(state[key][axis].to.every(Number.isFinite));
+ }
+ const reviewed=plan.sample(finish.end-.001);close([reviewed.values.turn,reviewed.values.tilt],[end.values.turn,end.values.tilt]);
+});
+
+test('reference axes finish moving up before the horizontal plane is created',()=>{
+ const {plan}=setup(),align=plan.segments.find(s=>s.id==='reference-align'),plane=plan.segments.find(s=>s.id==='plane');
+ assert.equal(align.end,plane.start);
+ assert.equal(sample(plan,'reference-align',.5).plane,null);
+ const ready=sample(plan,'reference-align',1);assert.equal(ready.plane,null);
+ close(ready.referenceAxes.frame.origin,plan.frames.torso.origin);
+ const growing=sample(plan,'plane',.5);assert.ok(growing.plane.size>0);
+ close(growing.referenceAxes.frame.origin,plan.frames.torso.origin);
+});
+
+test('target shoulder vector waits until the plane is complete and reference forward has faded',()=>{
+ const {plan}=setup(),plane=plan.segments.find(s=>s.id==='plane'),trim=plan.segments.find(s=>s.id==='reference-trim'),focus=plan.segments.find(s=>s.id==='lateral-focus');
+ assert.equal(plane.end,trim.start);assert.equal(trim.end,focus.start);
+ for(const id of ['reference-align','plane','reference-trim'])assert.equal(sample(plan,id,.5).torsoAxes,null);
+ const fading=sample(plan,'reference-trim',.5);assert.equal(fading.referenceAxes.y.opacity,undefined);assert.ok(fading.referenceAxes.z.opacity>0&&fading.referenceAxes.z.opacity<1);
+ for(const id of ['lateral-focus','lateral-grow','lateral-release','lateral-align']){
+  const state=sample(plan,id,.5);assert.ok(state.referenceAxes.y);assert.equal(state.referenceAxes.z,null);assert.ok(state.plane.size>0);
+ }
+});
+
+test('reference up stays visible through shoulder projection, turn and tilt',()=>{
+ const {plan}=setup();
+ for(const id of ['reference-trim','lateral-grow','projection','turn','tilt']){
+  const state=sample(plan,id,.5),up=state.referenceAxes.y;
+  assert.ok(up);close(unit(sub(up.to,up.from)),plan.frames.reference.y);
+  assert.equal(up.opacity,undefined);assert.equal(state.torsoAxes?.y??null,null);
+ }
+});

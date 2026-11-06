@@ -1,10 +1,8 @@
 import {reviewTiming} from './review-timing.js';
 import {avoidEndOn} from './pair-camera.js';
 import {add,sub,mul,unit,project,cross,rotate,dot,deg} from '../math.js';
-import {frameDefinitions,completedAxes,constructAxes,mix} from './axis-frame.js';
-import {constructionSegments} from './construction.js';
-import {sampleConstruction} from './construction-state.js';
-import {createConstructionCamera} from './construction-camera.js';
+import {frameDefinitions,completedAxes,mix} from './axis-frame.js';
+import {createReferencePrelude} from './reference-prelude.js';
 import {projectionMotion,projectionView} from './vector-projection.js';
 import {jointPairArrow,jointPairEmphasis,pairFocusStage,pairReleaseStage} from './joint-pair.js';
 import {cameraOrientation,cameraBetween,uprightCamera,uprightCameraBetween} from './camera.js';
@@ -31,7 +29,7 @@ export function createSpinePlaneChoreography(model){
  const uprightBetween=(a,b,p)=>uprightCameraBetween(a,b,p,reference.y,reference.z);
  const spineView=avoidEndOn(oblique,pairs.up,reference.y);
  const stretchView=avoidEndOn(baselineView,pairs.lateral,reference.y,joint==='shoulder'?{maxAlignment:.5,targetAlignment:.4}:undefined);
- const referenceCamera=createConstructionCamera(reference,front);
+ const prelude=createReferencePrelude(reference,front);
  const points=[...Object.values(pairs).flatMap(p=>[p.from,p.to]),...[-1,1].flatMap(a=>[-1,1].map(b=>add(origin,add(mul(x,L*a),mul(z,L*b))))),add(origin,mul(n,L))];
  const action=(id,duration=1600,extra={})=>({id,title:id.replaceAll('-',' '),duration:duration+500,motionDuration:duration,...extra});
  const pairStages=name=>[
@@ -40,7 +38,7 @@ export function createSpinePlaneChoreography(model){
   {...pairReleaseStage('selected',name,name),id:name+'-release',pair:name,phase:'release'},
   action(name+'-align',1400,{pair:name,phase:'align'}),
  ];
- const segments=[action('intro',2200),action('reference-focus',1100),...constructionSegments('reference',reference),
+ const segments=[action('intro',2200),action('reference-focus',1100),...prelude.segments,
   action('selected-focus',1700),action('measurement-camera',1800),...pairStages('up'),action('plane',1400),
   action('reference-align',1800),action('reference-trim',1200),
   action('baseline-camera',1500),action('baseline-angle',700,{hold:2300}),action('baseline-project',1800),action('baseline-fade',1200),
@@ -68,12 +66,7 @@ export function createSpinePlaneChoreography(model){
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{turn:0},active:null,focus:0,focusOrigin:origin,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null,plane:null};
   if(s.id==='intro')return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
-  if(s.id.startsWith('reference-')&&s.step){
-   state.referencePose=.28;state.selectedPose=0;
-   if(s.constructionCamera){state.referenceAxes=constructAxes(reference,s.step,s.view==='out'?1:0);Object.assign(state,referenceCamera(s.view,p));}
-   else {const result=sampleConstruction(reference,s,p,'reference');state.referenceAxes=result.axes;state.jointHighlights=result.highlights;Object.assign(state,referenceCamera(s.step==='orthogonalize'?'orthogonalize':['plane','forward','plane-fade'].includes(s.step)?'cross-hold':'hold',1));}
-   return state;
-  }
+  if(prelude.sample(state,s,p))return state;
   state.referencePose=0;state.selectedPose=.28;state.referenceAxes=completedAxes(reference);
   if(s.id==='selected-focus'){
    state.referencePose=.28*(1-p);state.selectedPose=.28*p;return state;

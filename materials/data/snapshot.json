@@ -18,5 +18,13 @@
       "duration": 30,
       "stay": 5
     }
+  },
+  "geometric": {
+    "shoulder_turn_tilt": {
+      "video": "00",
+      "frame": 300,
+      "duration": 30,
+      "stay": 5
+    }
   }
 }
