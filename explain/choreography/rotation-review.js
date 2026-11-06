@@ -1,4 +1,4 @@
-import {cameraOrientation,cameraBetween} from './camera.js';
+import {cameraOrientation,cameraBetween,uprightCameraBetween} from './camera.js';
 import {ease,clamp} from '../ui/timeline.js';
 // One continuous global view: reveal the pose, fade-reset the axes, replay Y–X–Z.
 export function createRotationReview(reference,rotation){
@@ -9,7 +9,7 @@ export function createRotationReview(reference,rotation){
   if(p<.22){
    rotation.sample(state,{id:'finish'},1);
    const start=cameraOrientation(state.camera.direction,state.camera.up),t=ease(p/.22);
-   state.camera=cameraBetween(start,view,t);state.focus=1+(focus-1)*t;state.selectedPose=.1+(pose-.1)*t;
+   state.camera=uprightCameraBetween(start,view,t,reference.y,reference.z);state.focus=1+(focus-1)*t;state.selectedPose=.1+(pose-.1)*t;
    state.referenceAxes.opacity=1-t;state.values={turn:0,bend:0,tilt:0};
    state.sectors=[];return state;
   }

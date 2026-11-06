@@ -482,7 +482,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     const halfFov=Math.min(verticalHalfFov,Math.atan(Math.tan(verticalHalfFov)*camera.aspect));
     let distance=bound*distanceScale/(Math.sin(halfFov)*.84);
     const cameraTarget=snapshotFocus.clone();
-    if(snapshotPairFocus){const fit=fitPairCamera(snapshotPairFocus,vector,halfFov,distance,cameraTarget);cameraTarget.copy(fit.target);distance=fit.distance;camera.zoom=zoom;}
+    if(snapshotPairFocus){const fit=fitPairCamera(snapshotPairFocus,vector,halfFov,distance,cameraTarget,snapshotFocusZoom);cameraTarget.copy(fit.target);distance=fit.distance;camera.zoom=zoom*fit.zoom;}
     camera.far=Math.max(100,distance+bound*5);
     const minimumCameraY=floor.position.y+.0125+.02;
     if(selectedView==='free-view')pitch=Math.max(pitch,Math.asin(Math.max(-.999,Math.min(.999,minimumCameraY/distance))));

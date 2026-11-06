@@ -60,7 +60,7 @@ test('each construction step includes a hold interval and each camera settles be
   const ready=plan.sample(cameraStep.start+cameraStep.motionDuration),start=plan.sample(rotation.start),during=plan.sample(rotation.start+rotation.motionDuration/2);
   close(ready.camera.direction,start.camera.direction);close(start.camera.direction,during.camera.direction);
   assert.ok(Math.abs(start.values[key])<1e-12);assert.ok(Math.abs(during.values[key])>0);
-  const normal=start.referenceAxes.frame[axis];assert.ok(Math.abs(dot(start.camera.direction,normal)-1)<1e-10);
+  const normal=start.referenceAxes.frame[axis];assert.ok(dot(start.camera.direction,normal)>(key==='turn'?.99:1-1e-10));
   assert.equal(during.sectors.length,2);
   assert.deepEqual(during.sectors.map(sector=>sector.direction),['x','y','z'].filter(direction=>direction!==axis));
   for(const sector of during.sectors){assert.equal(sector.axis,axis);assert.equal(sector.angle,during.values[key]);assert.ok(Math.abs(dot(sector.from,sector.normal))<1e-10);}
@@ -152,4 +152,28 @@ test('a separate fully visible angle hold precedes component removal',()=>{
   assert.equal(start.angleMarker.opacity,1);assert.deepEqual(start,end);
   assert.deepEqual(start.x,plan.sample(removal.start)[key].x);
  }
+});
+
+test('torso camera keeps global up without changing rotation-axis viewing directions',()=>{
+ const {plan}=setup();
+ for(let time=0;time<=plan.duration;time+=97)assert.deepEqual(plan.sample(time).camera.up,plan.frames.reference.y);
+ for(const [key,axis] of [['turn','y'],['bend','x'],['tilt','z']]){
+  const stage=plan.segments.find(s=>s.id===key),state=plan.sample(stage.start);
+  assert.ok(dot(state.camera.direction,state.referenceAxes.frame[axis])>(key==='turn'?.99:1-1e-10));
+ }
+});
+
+test('Turn to Forward bend remains upright and avoids pole flips',async()=>{
+ const {PerspectiveCamera,Vector3}=await import('../vendor/three/three.module.js');
+ const {plan}=setup(),step=plan.segments.find(s=>s.id==='camera-bend');
+ let previous;
+ for(let i=0;i<=200;i++){
+  const state=plan.sample(step.start+step.motionDuration*i/200);
+  assert.ok(Math.abs(dot(state.camera.direction,plan.frames.reference.y))<.995);
+  const camera=new PerspectiveCamera();camera.position.set(...state.camera.direction);camera.up.set(...state.camera.up);camera.lookAt(new Vector3());
+  if(previous)assert.ok(previous.angleTo(camera.quaternion)<.04);
+  previous=camera.quaternion.clone();
+ }
+ const turn=plan.segments.find(s=>s.id==='turn');
+ close(plan.sample(turn.end-.001).camera.direction,plan.sample(step.start).camera.direction);
 });

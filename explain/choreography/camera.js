@@ -8,3 +8,19 @@ export function cameraBetween(from,to,t){
  const q=from.clone().slerp(to,t);
  return {direction:new Vector3(0,0,1).applyQuaternion(q).toArray(),up:new Vector3(0,1,0).applyQuaternion(q).toArray()};
 }
+
+// Preserve global vertical even while the scripted view direction changes.
+export function uprightCamera(camera,globalUp){return {...camera,up:[...globalUp]};}
+
+// Interpolate heading and elevation rather than a rolled quaternion path.
+export function uprightCameraBetween(from,to,t,globalUp,forward){
+ const up=new Vector3(...globalUp).normalize(),z=new Vector3(...forward).normalize(),x=new Vector3().crossVectors(up,z).normalize();
+ function angles(q){
+  const d=new Vector3(0,0,1).applyQuaternion(q);
+  return {yaw:Math.atan2(d.dot(x),d.dot(z)),pitch:Math.asin(Math.max(-1,Math.min(1,d.dot(up))))};
+ }
+ const a=angles(from),b=angles(to),delta=Math.atan2(Math.sin(b.yaw-a.yaw),Math.cos(b.yaw-a.yaw));
+ const yaw=a.yaw+delta*t,pitch=a.pitch+(b.pitch-a.pitch)*t;
+ const direction=z.clone().multiplyScalar(Math.cos(yaw)*Math.cos(pitch)).addScaledVector(x,Math.sin(yaw)*Math.cos(pitch)).addScaledVector(up,Math.sin(pitch));
+ return {direction:direction.toArray(),up:[...globalUp]};
+}

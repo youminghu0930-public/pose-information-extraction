@@ -1,11 +1,11 @@
 import {createRotationReview} from './rotation-review.js';
 import {createConstructionCamera} from './construction-camera.js';
 import {constructionSegments,scheduleSegments} from './construction.js';
-import {jointPairEmphasis} from './joint-pair.js';
+import {sampleConstruction as sampleFrameConstruction} from './construction-state.js';
 import {frameDefinitions,constructAxes,completedAxes,mix} from './axis-frame.js';
 import {createIntrinsicRotation} from './intrinsic-rotation.js';
 import {ease,clamp} from '../ui/timeline.js';
-import {cameraOrientation,cameraBetween} from './camera.js';
+import {cameraOrientation,cameraBetween,uprightCamera} from './camera.js';
 export function createTorsoChoreography(model){
  const {data,meta,entry}=model.context,frames=frameDefinitions(data,meta,entry.frame),values=Object.fromEntries(model.items.map(item=>[item.key,item.computed]));
  const segments=[{id:'intro',title:'Reference + selected pose',duration:2200},{id:'reference-focus',title:'Reference pose',duration:1100},...constructionSegments('reference',frames.reference,'Reference'),
@@ -21,22 +21,12 @@ export function createTorsoChoreography(model){
  const review=createRotationReview(frames.reference,rotation);
  const front=cameraOrientation(frames.reference.z,frames.reference.y);
  const cameras=Object.fromEntries(Object.entries(frames).map(([key,frame])=>[key,createConstructionCamera(frame,front)]));
- function sample(time){
+ function sampleState(time){
   const t=clamp(time/total)*total,s=segments.find(segment=>t<segment.end)??segments.at(-1),elapsed=t-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{turn:0,bend:0,tilt:0},active:null,focus:0,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null};
   function sampleConstruction(key){
-   const pair=s.jointPair,frame=frames[key];
-   if(pair){
-    state.jointHighlights=[{pose:key==='reference'?'reference':'selected',joints:frame.jointPairs[pair.name].joints,strength:jointPairEmphasis(pair.phase,p)}];
-    if(pair.name==='up')return constructAxes(frame,s.step,p,pair.phase);
-    const arrowProgress=pair.phase==='focus'?0:pair.phase==='release'?1:p;
-    return constructAxes(frame,s.step,arrowProgress);
-   }
-   if(s.anglePhase){
-    const axes=constructAxes(frame,s.step,s.anglePhase==='remove'?.28+.72*p:0);
-    axes.angleMarker.opacity=s.anglePhase==='reveal'?p:1;return axes;
-   }
-   return constructAxes(frame,s.step,p);
+   const result=sampleFrameConstruction(frames[key],s,p,key==='reference'?'reference':'selected');
+   state.jointHighlights=result.highlights;return result.axes;
   }
   if(s.id==='intro')return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
@@ -76,5 +66,6 @@ export function createTorsoChoreography(model){
   }
   return state;
  }
+ function sample(time){const state=sampleState(time);state.camera=uprightCamera(state.camera,frames.reference.y);return state;}
  return {segments,duration:total,frames,values,sample};
 }

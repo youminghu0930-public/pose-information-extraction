@@ -1,6 +1,6 @@
-import {axes,rotate} from '../math.js';
+import {axes,rotate,add,mul} from '../math.js';
 import {completedAxes} from './axis-frame.js';
-import {cameraOrientation,cameraBetween} from './camera.js';
+import {cameraOrientation,uprightCameraBetween} from './camera.js';
 // Y–X–Z intrinsic rotation, independent of joints and metric selection.
 export function createIntrinsicRotation(reference,target,meta,values){
  const mapDirection=v=>meta.orientation.map(row=>row.reduce((sum,n,i)=>sum+n*v[i],0));
@@ -10,7 +10,10 @@ export function createIntrinsicRotation(reference,target,meta,values){
   return {...reference,origin:target.origin,length:target.length,x:mapDirection(x),y:mapDirection(y),z:mapDirection(z),rawX:mapDirection(x)};
  }
  const before={turn:rotatedFrame(0,0,0),bend:rotatedFrame(values.turn,0,0),tilt:rotatedFrame(values.turn,values.bend,0)};
- const views={front:cameraOrientation(reference.z,reference.y),turn:cameraOrientation(before.turn.y,before.turn.z),bend:cameraOrientation(before.bend.x,before.bend.y),tilt:cameraOrientation(before.tilt.z,before.tilt.y)};
+ // Six degrees off the vertical pole keeps a stable global-up heading.
+ const turnView=add(mul(before.turn.y,Math.cos(Math.PI/30)),mul(before.bend.x,Math.sin(Math.PI/30)));
+ const between=(a,b,t)=>uprightCameraBetween(a,b,t,reference.y,reference.z);
+ const views={front:cameraOrientation(reference.z,reference.y),turn:cameraOrientation(turnView,reference.y),bend:cameraOrientation(before.bend.x,reference.y),tilt:cameraOrientation(before.tilt.z,reference.y)};
  function rotationSectors(key,angle){
   const axis={turn:'y',bend:'x',tilt:'z'}[key];
   return ['x','y','z'].filter(direction=>direction!==axis).map(direction=>({
@@ -22,9 +25,9 @@ export function createIntrinsicRotation(reference,target,meta,values){
   const turn=rank>1?values.turn:s.id==='turn'?values.turn*p:0,bend=rank>3?values.bend:s.id==='bend'?values.bend*p:0,tilt=rank>5?values.tilt:s.id==='tilt'?values.tilt*p:0;
   state.values={turn,bend,tilt};state.referenceAxes=completedAxes(rotatedFrame(turn,bend,tilt));
   if(s.cameraFor){
-   const key=s.cameraFor,previous={turn:'front',bend:'turn',tilt:'bend'}[key];state.camera=cameraBetween(views[previous],views[key],p);state.referenceAxes.highlight={turn:'y',bend:'x',tilt:'z'}[key];
+   const key=s.cameraFor,previous={turn:'front',bend:'turn',tilt:'bend'}[key];state.camera=between(views[previous],views[key],p);state.referenceAxes.highlight={turn:'y',bend:'x',tilt:'z'}[key];
   }else{
-   const key=rank<=1?'turn':rank<=3?'bend':'tilt';state.camera=cameraBetween(views[key],views[key],1);
+   const key=rank<=1?'turn':rank<=3?'bend':'tilt';state.camera=between(views[key],views[key],1);
   }
   if(['turn','bend','tilt'].includes(s.id)){
    const key=s.id,axis={turn:'y',bend:'x',tilt:'z'}[key];state.active=key;state.referenceAxes.highlight=axis;
@@ -32,7 +35,7 @@ export function createIntrinsicRotation(reference,target,meta,values){
   }
   if(s.id==='finish')state.sectors=rotationSectors('tilt',values.tilt);
   if(s.id==='reset'){
-   state.camera=cameraBetween(views.tilt,views.front,p);state.focus=1-p;state.referencePose=.5*p;state.selectedPose=.1+.9*p;state.referenceAxes.opacity=1-p;state.torsoAxes.opacity=.42*(1-p);
+   state.camera=between(views.tilt,views.front,p);state.focus=1-p;state.referencePose=.5*p;state.selectedPose=.1+.9*p;state.referenceAxes.opacity=1-p;state.torsoAxes.opacity=.42*(1-p);
   }
   return state;
  }

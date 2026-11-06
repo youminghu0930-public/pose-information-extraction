@@ -1,5 +1,5 @@
 import * as THREE from '../../vendor/three/three.module.js';
-import {axisColors} from '../palette.js';
+import {angleColor} from '../palette.js';
 import {sectorBoundary} from './sector-shape.js';
 
 export function createRotationSector(scene,toWorld){
@@ -21,9 +21,9 @@ export function createRotationSector(scene,toWorld){
   outlinePositions.setXYZ(count+2,origin.x,origin.y,origin.z);
   positions.needsUpdate=true;outlinePositions.needsUpdate=true;
   geometry.computeBoundingSphere();outlineGeometry.computeBoundingSphere();
-  const opacity=spec.opacity??1;material.opacity=.2*opacity;
+  const opacity=spec.opacity??1;material.opacity=.28*opacity;
   outline.visible=amount>0;outline.material.opacity=.75*amount*opacity;
-  material.color.set(axisColors[spec.axis]);outline.material.color.copy(material.color);
+  material.color.set(angleColor);outline.material.color.copy(material.color);
  }
  return {update,dispose(){geometry.dispose();material.dispose();outlineGeometry.dispose();outline.material.dispose();scene.remove(mesh,outline);}};
 }

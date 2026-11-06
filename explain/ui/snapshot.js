@@ -4,6 +4,7 @@ import {jointPairPresentation} from '../choreography/joint-pair.js';
 import {cameraOrientation,cameraBetween} from '../choreography/camera.js';
 import {createSnapshotHeader} from './header.js';
 import {explainSnapshot} from '../index.js';
+import {mountSpinePlanePlayer} from './spine-plane-player.js';
 import {mountTorsoPlayer} from './torso-player.js';
 import {mountExplanationPanel} from './panel.js';
 import {createExplanationLayer} from './scene.js';
@@ -11,6 +12,8 @@ import {make} from './dom.js';
 
 // Presentation dispatch belongs to the explanation library, not the pose viewer.
 const players=new Map([
+ ['kinematic.hip_turn_on_spine_plane',mountSpinePlanePlayer],
+ ['kinematic.shoulder_turn_on_spine_plane',mountSpinePlanePlayer],
  ['kinematic.torso_turn_bend_tilt',mountTorsoPlayer],
  ['kinematic.torso_turn_bend_tilt_by_shoulder',mountTorsoPlayer],
 ]);

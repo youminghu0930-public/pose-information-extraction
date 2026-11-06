@@ -85,3 +85,12 @@ test('cross-product close-ups settle before the plane and hold through the resul
   }
  }
 });
+test('close-up framing releases continuously into the review zoom',()=>{
+ const points=[[0,0,0],[.2,.4,0]],target=new Vector3(.1,.2,0),distance=5,zoom=1.768;
+ const zero=fitPairCamera({points,amount:0},p=>new Vector3(...p),Math.PI/8,distance,target,zoom);
+ assert.equal(zero.zoom,zoom);assert.equal(zero.distance,distance);assert.ok(zero.target.distanceTo(target)<1e-12);
+ const almost=fitPairCamera({points,amount:.000001},p=>new Vector3(...p),Math.PI/8,distance,target,zoom);
+ assert.ok(Math.abs(almost.zoom-zero.zoom)<.000001);
+ const close=fitPairCamera({points,amount:1},p=>new Vector3(...p),Math.PI/8,distance,target,zoom);
+ assert.equal(close.zoom,1);
+});
