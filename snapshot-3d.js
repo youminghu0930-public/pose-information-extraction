@@ -74,7 +74,8 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     : configuredRange;
   if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isInteger) || range[0] < 0 || range[1] < range[0] || range[1] >= frames.length) throw new Error('Invalid snapshot frame range');
   const [start,end] = range;
-  const joints = (entry.joints || []).map(name => name === 'golf_club_haed' ? 'golf_club_head' : name);
+  const joints = (entry.joints || []).map(name => name === 'golf_club_haed' ? 'golf_club_head' : name)
+    .filter(name => bannerMode || !name.startsWith('golf_club_'));
   if (joints.some(name => !names.includes(name))) throw new Error('Unknown trail joint');
   let frame = Math.min(end, Math.max(start, entry.highlight_index ?? start));
   let yaw = 0, pitch = 0, zoom = 1, distanceScale = 1;
@@ -202,7 +203,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   const historyStride=Math.max(1,Math.round(fps*.1));
   const historyWindow=Math.max(1,(end-start+1)*.3);
   const clubSpeeds=speeds.get('golf_club_head') || speeds.get(joints[0]);
-  for(let f=start;f<=end;f+=historyStride){
+  for(let f=start;bannerMode && f<=end;f+=historyStride){
     const segments=[];
     for(const [a,b] of clubEdges){
       if(!valid(frames[f]?.[a])||!valid(frames[f]?.[b]))continue;
