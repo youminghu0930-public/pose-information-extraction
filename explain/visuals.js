@@ -7,7 +7,7 @@ export const segment=(from,to,label,color=colors.input)=>({kind:'vector',from,to
 export const jointVector=(feature,label,color=colors.input,pose='selected')=>({...segment(feature.from,feature.to,label,color),jointPair:{pose,joints:feature.joints}});
 export const plane=(origin,normal,radius,label)=>({kind:'plane',origin,normal:unit(normal),radius,label,color:colors.projection});
 export const arc=(origin,from,normal,degrees,radius,label)=>({kind:'arc',origin,from:unit(project(from,normal)),normal:unit(normal),degrees,radius,label,color:colors.result});
-export const projection=(origin,direction,normal,size,label='Projection')=>({kind:'projection',origin,direction:unit(direction),target:project(unit(direction),normal),size,label,color:colors.projection});
+export const projection=(origin,direction,normal,size,label='Projection')=>({kind:'projection',origin,direction:unit(direction),target:unit(project(unit(direction),normal)),size,label,color:colors.projection});
 export const stage=(title,text,visuals=[],detail='')=>({title,text,visuals,detail});
 export function globalStage(c,origin,size){
  const a=c.point('left_ankle',c.reference),b=c.point('right_ankle',c.reference),o=mul(add(a,b),.5);

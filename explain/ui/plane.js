@@ -10,6 +10,6 @@ export function createPlaneRenderer(scene,toWorld){
   mesh.visible=!!spec&&spec.opacity>0;if(!mesh.visible)return;
   const corners=[[-1,-1],[1,-1],[1,1],[-1,1]];
   corners.forEach(([a,b],i)=>{const p=toWorld(add(spec.origin,add(mul(spec.u,a*spec.size),mul(spec.v,b*spec.size))));geometry.attributes.position.setXYZ(i,p.x,p.y,p.z);});
-  geometry.attributes.position.needsUpdate=true;geometry.computeBoundingSphere();material.opacity=.12*spec.opacity;
+  geometry.attributes.position.needsUpdate=true;geometry.computeBoundingSphere();material.opacity=.12*spec.opacity;material.color.set(axisColors[spec.axis??'y']);
  },dispose(){scene.remove(mesh);geometry.dispose();material.dispose();}};
 }

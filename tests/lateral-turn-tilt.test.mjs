@@ -51,21 +51,19 @@ test('reference axes finish moving up before the horizontal plane is created',()
  close(growing.referenceAxes.frame.origin,plan.frames.torso.origin);
 });
 
-test('target shoulder vector waits until the plane is complete and reference forward has faded',()=>{
+test('target shoulder vector waits until the plane is complete and reference up and forward have faded',()=>{
  const {plan}=setup(),plane=plan.segments.find(s=>s.id==='plane'),trim=plan.segments.find(s=>s.id==='reference-trim'),focus=plan.segments.find(s=>s.id==='lateral-focus');
  assert.equal(plane.end,trim.start);assert.equal(trim.end,focus.start);
  for(const id of ['reference-align','plane','reference-trim'])assert.equal(sample(plan,id,.5).torsoAxes,null);
- const fading=sample(plan,'reference-trim',.5);assert.equal(fading.referenceAxes.y.opacity,undefined);assert.ok(fading.referenceAxes.z.opacity>0&&fading.referenceAxes.z.opacity<1);
+ const fading=sample(plan,'reference-trim',.5);assert.ok(fading.referenceAxes.y.opacity>0&&fading.referenceAxes.y.opacity<1);assert.ok(fading.referenceAxes.z.opacity>0&&fading.referenceAxes.z.opacity<1);
  for(const id of ['lateral-focus','lateral-grow','lateral-release','lateral-align']){
-  const state=sample(plan,id,.5);assert.ok(state.referenceAxes.y);assert.equal(state.referenceAxes.z,null);assert.ok(state.plane.size>0);
+  const state=sample(plan,id,.5);assert.equal(state.referenceAxes.y,null);assert.equal(state.referenceAxes.z,null);assert.ok(state.plane.size>0);
  }
 });
 
-test('reference up stays visible through shoulder projection, turn and tilt',()=>{
+test('reference up is hidden once the plane is established',()=>{
  const {plan}=setup();
- for(const id of ['reference-trim','lateral-grow','projection','turn','tilt']){
-  const state=sample(plan,id,.5),up=state.referenceAxes.y;
-  assert.ok(up);close(unit(sub(up.to,up.from)),plan.frames.reference.y);
-  assert.equal(up.opacity,undefined);assert.equal(state.torsoAxes?.y??null,null);
+ for(const id of ['lateral-grow','projection','turn','tilt']){
+  const state=sample(plan,id,.5);assert.equal(state.referenceAxes.y,null);assert.equal(state.torsoAxes?.y??null,null);
  }
 });

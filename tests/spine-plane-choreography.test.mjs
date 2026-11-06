@@ -11,10 +11,10 @@ const planFor=extra=>createSpinePlaneChoreography(explainSnapshot(data,metrics,{
 const sample=(plan,id,p)=>{const s=plan.segments.find(s=>s.id===id);return plan.sample(s.start+(s.motionDuration??s.duration)*p);};
 test('hip-plane choreography exposes correct joints, projections and signed final turn',()=>{
  const plan=planFor();assert.equal(plan.duration,45000);
- assert.equal(plan.sample(0).referencePose,.5);assert.equal(plan.sample(0).selectedPose,1);
+ assert.equal(plan.sample(0).referencePose,0);assert.equal(plan.sample(0).selectedPose,1);
  assert.deepEqual(sample(plan,'lateral-grow',.5).jointHighlights[0].joints,['right_hip','left_hip']);
  assert.deepEqual(sample(plan,'up-grow',.5).jointHighlights[0].joints,['root','torso']);
- const projected=sample(plan,'normalize',1),n=plan.frames.torso.y;
+ const projected=sample(plan,'lateral-project',1),n=plan.frames.torso.y;
  for(const key of ['referenceAxes','torsoAxes'])assert.ok(Math.abs(dot(sub(projected[key].x.to,projected[key].x.from),n))<1e-8);
  const start=sample(plan,'turn',0),end=sample(plan,'turn',1);
  close(rotate(unit(sub(start.referenceAxes.x.to,start.referenceAxes.x.from)),n,plan.values.turn),unit(sub(end.torsoAxes.x.to,end.torsoAxes.x.from)));
@@ -106,13 +106,13 @@ test('camera settles facing the difference plane before each projection and stay
  }
 });
 
-test('the rotation and review draw only one shared lower-spine arrow',()=>{
+test('the rotation and review never restore the hidden lower-spine arrow',()=>{
  const plan=planFor(),turn=plan.segments.find(s=>s.id==='turn');
  for(let time=turn.start;time<plan.duration;time+=41){
   const state=plan.sample(time);
   assert.equal(state.referenceAxes.y,null);
-  assert.ok(state.torsoAxes.y);
-  assert.equal([state.referenceAxes,state.torsoAxes,state.originalReferenceAxes,state.originalTorsoAxes].filter(axes=>axes?.y).length,1);
+  assert.equal(state.torsoAxes.y,null);
+  assert.equal([state.referenceAxes,state.torsoAxes,state.originalReferenceAxes,state.originalTorsoAxes].filter(axes=>axes?.y).length,0);
  }
 });
 test('shoulder variant uses the shoulder pair with the same lower spine and correct exported turn',()=>{

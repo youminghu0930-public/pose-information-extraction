@@ -1,3 +1,4 @@
+import {updatePoseShadowStrength} from './pose-shadow.js';
 import {mountViewInput} from './explain/ui/window-input.js';
 import {createPoseSurface} from './pose-surface.js';
 import {fitPairCamera} from './explain/ui/camera-framing.js';
@@ -96,6 +97,8 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     const mesh = bannerMode?new THREE.Mesh(sphere,jointMaterial):surface.joint(jointMaterial);
     mesh.castShadow = mesh.receiveShadow = true;if(bannerMode)mesh.renderOrder=3; scene.add(mesh); return mesh;
   });
+  const setupPoseShadow=mesh=>{mesh.castShadow=true;};
+  if(snapshot)[...bones.map(b=>b.mesh),...dots.filter(Boolean)].forEach(setupPoseShadow);
   let referenceGroup,referenceDots=[],selectedPoseOpacity=1;
   if(snapshot){
     // Use the same transform for both poses: no independent centering or scaling.
@@ -122,14 +125,16 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       surface.placeJoint(mesh,vector(referencePose[index]));referenceDots[index]=mesh;referenceGroup.add(mesh);
     });
 
+    referenceGroup.traverse(object=>{if(object.isMesh)setupPoseShadow(object);});
   }
   function setSnapshotPoseOpacity(referenceOpacity,selectedOpacity,jointHighlights=[]){
     if(!snapshot)return;
     selectedPoseOpacity=selectedOpacity;
+    updatePoseShadowStrength(light,referenceOpacity,selectedOpacity);
     referenceGroup.visible=referenceOpacity>.001;
-    referenceGroup.traverse(object=>{if(object.material){object.material.opacity=referenceOpacity;object.material.transparent=true;object.material.depthWrite=referenceOpacity>.999;object.castShadow=referenceOpacity>.999;}});
+    referenceGroup.traverse(object=>{if(object.material){object.material.opacity=referenceOpacity;object.material.transparent=true;object.material.depthWrite=referenceOpacity>.999;object.castShadow=true;}});
     for(const object of [...bones.map(b=>b.mesh),...dots.filter(Boolean)]){
-      object.material.transparent=true;object.material.opacity=selectedOpacity;object.material.depthWrite=selectedOpacity>.999;object.castShadow=selectedOpacity>.999;
+      object.material.transparent=true;object.material.opacity=selectedOpacity;object.material.depthWrite=selectedOpacity>.999;object.castShadow=true;
     }
     for(const highlight of jointHighlights){
       const base=highlight.pose==='reference'?referenceOpacity:selectedOpacity;
@@ -233,7 +238,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   // Include camera positions with one grid cell of edge clearance in video scenes.
   const floorExtent=showCameras?Math.max(extent,cameraGroundExtent+Math.max(gridStep,.25*unit)):extent;
   const floorSize = 2*floorExtent/unit;
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(floorSize,.025,floorSize),new THREE.MeshStandardMaterial({color:'#e2eadf',roughness:.95,transparent:true}));
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(floorSize,.025,floorSize),new THREE.MeshStandardMaterial({color:'#e2eadf',roughness:.95,transparent:false}));
   floor.position.copy(floorPosition);floor.position.y-=.0125;floor.receiveShadow=true;floor.renderOrder=-20;scene.add(floor);
   // Keep exact grid spacing while clipping lines to the exact ground size.
   const half = floorSize/2, step = gridStep/unit*(showCameras&&!bannerMode?2:1), gridPoints = [];
@@ -510,16 +515,16 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     if(snapshotCamera){
       const direction=vector(snapshotCamera.direction.map((v,i)=>v+center[i])).normalize();
       const up=vector(snapshotCamera.up.map((v,i)=>v+center[i])).normalize();
-      camera.position.copy(cameraTarget).addScaledVector(direction,distance);camera.up.copy(up);camera.lookAt(cameraTarget);
+      camera.position.copy(cameraTarget).addScaledVector(direction,distance);camera.up.copy(up);
+      if(!bannerMode)camera.position.y=Math.max(minimumCameraY,camera.position.y);
+      camera.lookAt(cameraTarget);
 
     }else if(!bannerMode)constrainCameraAboveGround(camera,minimumCameraY);
     camera.updateProjectionMatrix();
     updateDistanceGuides();
-    const belowGround=camera.position.y<floor.position.y+.0125;
-    floor.material.opacity=belowGround ? .3 : 1;
-    floor.material.depthWrite=!belowGround;
-    grid.material.transparent=true;grid.material.opacity=belowGround ? .3 : 1;
-    grid.material.depthWrite=!belowGround;
+    // An opaque ground surface does not change with the observer's viewpoint.
+    floor.material.opacity=1;floor.material.depthWrite=true;
+    grid.material.transparent=false;grid.material.opacity=1;grid.material.depthWrite=true;
     const pose=frames[frame];
     for(const {a,b,mesh} of bones){
       mesh.visible=selectedPoseOpacity>.001&&valid(pose[a])&&valid(pose[b]);if(!mesh.visible)continue;

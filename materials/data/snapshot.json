@@ -25,6 +25,18 @@
       "frame": 300,
       "duration": 30,
       "stay": 5
+    },
+    "hip_turn_tilt": {
+      "video": "00",
+      "frame": 300,
+      "duration": 30,
+      "stay": 5
+    },
+    "spine_bend_tilt": {
+      "video": "00",
+      "frame": 300,
+      "duration": 30,
+      "stay": 5
     }
   }
 }

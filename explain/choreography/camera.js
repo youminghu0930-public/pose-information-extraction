@@ -24,3 +24,23 @@ export function uprightCameraBetween(from,to,t,globalUp,forward){
  const direction=z.clone().multiplyScalar(Math.cos(yaw)*Math.cos(pitch)).addScaledVector(x,Math.sin(yaw)*Math.cos(pitch)).addScaledVector(up,Math.sin(pitch));
  return {direction:direction.toArray(),up:[...globalUp]};
 }
+
+// Keep a measurement view at a modest elevation instead of below the subject.
+export function constrainViewElevation(orientation,globalUp,minDegrees=6,maxDegrees=15){
+ const up=new Vector3(...globalUp).normalize(),direction=new Vector3(0,0,1).applyQuaternion(orientation);
+ const elevation=Math.asin(Math.max(-1,Math.min(1,direction.dot(up))));
+ const pitch=Math.max(minDegrees*Math.PI/180,Math.min(maxDegrees*Math.PI/180,elevation));
+ const horizontal=direction.clone().addScaledVector(up,-direction.dot(up)).normalize();
+ return cameraOrientation(horizontal.multiplyScalar(Math.cos(pitch)).addScaledVector(up,Math.sin(pitch)).toArray(),globalUp);
+}
+
+// Bias an inclination view toward the measured side of the body's lean.
+export function viewFromLeanSide(orientation,leanDirection,planeNormal,globalUp){
+ const normal=new Vector3(...planeNormal).normalize(),lean=new Vector3(...leanDirection).dot(normal);
+ const direction=new Vector3(0,0,1).applyQuaternion(orientation);
+ if(Math.abs(lean)>1e-8){
+  direction.addScaledVector(normal,-direction.dot(normal)).normalize();
+  direction.addScaledVector(normal,Math.sign(lean)*.35).normalize();
+ }
+ return constrainViewElevation(cameraOrientation(direction.toArray(),globalUp),globalUp);
+}

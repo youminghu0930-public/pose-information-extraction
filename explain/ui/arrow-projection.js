@@ -21,6 +21,7 @@ export function createEndOnMarker(parent,color){
  cross.setAttribute('fill','none');cross.setAttribute('stroke',color);cross.setAttribute('stroke-width','2.5');cross.setAttribute('stroke-linecap','round');
  group.append(title,dot,cross);parent.append(group);
  return {
+  setColor(value){dot.setAttribute('fill',value);cross.setAttribute('stroke',value);},
   update(spec,radius=11,dotRadius=3.5){
    group.style.display=spec&&spec.markerOpacity>0?'':'none';if(!spec)return;
    group.style.opacity=spec.markerOpacity;group.setAttribute('transform',`translate(${spec.tx} ${spec.ty})`);

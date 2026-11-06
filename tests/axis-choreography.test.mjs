@@ -21,9 +21,9 @@ test('reference arrow grows right to left, shrinks to midpoint, then rotates abo
  for(const progress of [0,.25,.5,.75,1]){const s=constructAxes(f,'orthogonalize',progress);close(s.x.from,f.origin);assert.ok(Math.abs(length(sub(s.x.to,s.x.from))-f.length)<1e-12);}
  const corrected=constructAxes(f,'orthogonalize',1);assert.ok(Math.abs(dot(sub(corrected.x.to,corrected.x.from),f.y))<1e-12);
 });
-test('both skeletons appear first, then reference and current pose fade separately',()=>{
+test('result preview appears first, then reference and current pose fade separately',()=>{
  const {plan}=setup(),sample=id=>plan.sample(plan.segments.find(s=>s.id===id).start);
- const first=plan.sample(0);assert.equal(first.referencePose,.5);assert.equal(first.selectedPose,1);assert.equal(first.referenceAxes,null);
+ const first=plan.sample(0);assert.equal(first.referencePose,0);assert.equal(first.selectedPose,1);assert.equal(first.referenceAxes,null);
  const ref=sample('reference-grow');assert.equal(ref.referencePose,.28);assert.equal(ref.selectedPose,0);
  const torso=sample('torso-grow');assert.equal(torso.referencePose,0);assert.equal(torso.selectedPose,.28);
  const compare=sample('align');assert.ok(Math.abs(compare.selectedPose-.1)<1e-12);assert.ok(Math.abs(compare.torsoAxes.opacity-.42)<1e-12);

@@ -1,3 +1,4 @@
+import {mountSpineBendTiltPlayer} from './spine-bend-tilt-player.js';
 import {mountLateralTurnTiltPlayer} from './lateral-turn-tilt-player.js';
 import {subtypeDescriptions} from '../names.js';
 import {pairCamera} from '../choreography/pair-camera.js';
@@ -14,6 +15,8 @@ import {make} from './dom.js';
 // Presentation dispatch belongs to the explanation library, not the pose viewer.
 const players=new Map([
  ['geometric.shoulder_turn_tilt',mountLateralTurnTiltPlayer],
+ ['geometric.hip_turn_tilt',mountLateralTurnTiltPlayer],
+ ['geometric.spine_bend_tilt',mountSpineBendTiltPlayer],
  ['kinematic.hip_turn_on_spine_plane',mountSpinePlanePlayer],
  ['kinematic.shoulder_turn_on_spine_plane',mountSpinePlanePlayer],
  ['kinematic.torso_turn_bend_tilt',mountTorsoPlayer],
@@ -34,6 +37,7 @@ function mountPrimitivePlayer(panel,model,{scene,toWorld,canvas,setPoses,draw,se
   setPairFocus({points:[...view.points,...joints],amount:q.camera});setCamera(cameraBetween(front,view.orientation,q.camera));
  }
  const playback=mountExplanationPanel(panel,model,{canvas,
+  opening:state=>{setPoses(state.referencePose,state.selectedPose);draw();},
   show:visuals=>{pairs=visuals.filter(v=>v.jointPair);focus(0);explaining=visuals.length>0;setPoses(explaining?.28:.5,explaining?.28:1);layer.show(visuals,model.context.source);draw();},
   animate:progress=>{focus(progress);const highlights=layer.animate(progress);if(explaining)setPoses(.28,.28,highlights);draw();},
  });

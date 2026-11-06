@@ -1,3 +1,4 @@
+import {openingSegments,sampleOpening} from './opening.js';
 import {createRotationReview} from './rotation-review.js';
 import {createConstructionCamera} from './construction-camera.js';
 import {constructionSegments,scheduleSegments} from './construction.js';
@@ -8,7 +9,7 @@ import {ease,clamp} from '../ui/timeline.js';
 import {cameraOrientation,cameraBetween,uprightCamera} from './camera.js';
 export function createTorsoChoreography(model){
  const {data,meta,entry}=model.context,frames=frameDefinitions(data,meta,entry.frame),values=Object.fromEntries(model.items.map(item=>[item.key,item.computed]));
- const segments=[{id:'intro',title:'Reference + selected pose',duration:2200},{id:'reference-focus',title:'Reference pose',duration:1100},...constructionSegments('reference',frames.reference,'Reference'),
+ const segments=[...openingSegments(),{id:'reference-focus',title:'Reference pose',duration:1100},...constructionSegments('reference',frames.reference,'Reference'),
   {id:'selected-focus',title:'Selected pose',duration:1300},...constructionSegments('torso',frames.torso,'Torso'),
   {id:'compare',title:'Two coordinate frames',duration:1200,motionDuration:700},
   {id:'align',title:'Align origins and lengths',duration:2700,motionDuration:2200},
@@ -28,7 +29,7 @@ export function createTorsoChoreography(model){
    const result=sampleFrameConstruction(frames[key],s,p,key==='reference'?'reference':'selected');
    state.jointHighlights=result.highlights;return result.axes;
   }
-  if(s.id==='intro')return state;
+  if(sampleOpening(state,s,p,values))return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
   if(s.constructionCamera){
    const key=s.constructionCamera,f=frames[key];
@@ -66,6 +67,6 @@ export function createTorsoChoreography(model){
   }
   return state;
  }
- function sample(time){const state=sampleState(time);state.camera=uprightCamera(state.camera,frames.reference.y);return state;}
+ function sample(time){const state=sampleState(time);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,frames.reference.y);return state;}
  return {segments,duration:total,frames,values,sample};
 }

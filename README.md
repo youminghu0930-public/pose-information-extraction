@@ -170,3 +170,27 @@ Before a joint-pair vector stretches, the camera settles into the authored view.
 `geometric.shoulder_turn_tilt` has a dedicated visual sequence built from the shared reference prelude and coordinate player. It stretches the right-to-left shoulder vector, creates the reference horizontal plane at the shoulder midpoint, and shows its projection while retaining and then fading the original. Turn rotates reference X around global up to the horizontal projection; tilt rotates that projection toward the original shoulder direction in its difference plane. Magenta angle pies accompany both signed measurements. The camera stays upright, settles before stretches and rotations, and uses the stronger shoulder broadside constraint. The completion review holds the final result before resetting and replaying both measurements within `stay`.
 
 `reference-prelude.js` now supplies the identical reference construction to both spine-plane and shoulder-line demos; `direction-rotation.js` handles horizontal turn and signed elevation independently of presentation.
+
+### Hip turn/tilt and spine bend/tilt
+
+`geometric.hip_turn_tilt` shares the shoulder-line choreography and switches the measured joint pair to right/left hip. `geometric.spine_bend_tilt` uses hip center → shoulder center, projects that spine onto reference XY for forward bend and reference YZ for side tilt, then rotates each projection toward the original spine. It shares the reference prelude, joint-pair presentation, projection motion, difference-plane camera, coordinate player and review timing. `plane-inclination.js` supplies the signed projection-to-source rotations independently of UI code. Both demos retain global up, wait for the reference axes and plane before drawing the target, and hold the completed result before replaying within `stay`.
+
+### Projection display length
+
+Projection and display-length adjustment share one animation. The projected arrow reaches its plane and final normalized display length together; there is no separate normalization step. The original remains visible through that motion, then fades while the projected endpoint stays fixed. This applies to both reference/current spine-plane projections, lateral turn/tilt, spine bend/tilt, and shared primitive projections. Overall configured duration is preserved.
+
+### Projection angle presentation
+
+Projection pies measure the angle between the vector and its plane, closing to 0° as the vector becomes parallel. A second magenta swept pie highlights the angle removed between the original and moving arrow; it remains visible until the original fades. `planeProjectionAngle` supplies the shared wedge and label directions; projection no longer uses a normal-to-vector 90° pie or square marker. Unused reference up arrows fade once the plane is established. The lower-spine axis is hidden after plane setup and stays hidden through rotation, review and reset. The reference-orientation construction retains its own existing axis-building animation.
+
+### Direct references for spine inclination
+
+Spine forward bend and side tilt now skip the projection animation. After each plane is established, its reference direction fades in at the final position and display length, colored to match that plane (orange for XY/bend, violet for YZ/tilt). The actual spine remains cyan at its full joint-to-joint length; each reference vector matches that length. After a short pause the reference rotates toward the spine, with the magenta angle pie and numeric result. This also applies during the completion review; other metrics keep their projection sequences.
+
+### Shared result-first opening
+
+Every metric starts with only the current pose and its final values, holds briefly, then fades in the reference pose while resetting the numbers to zero. The existing construction starts after that transition. `choreography/opening.js` supplies the same opening to dedicated coordinate choreographies and the primitive recipe player. The added opening remains within the configured animation duration; completion review still uses `stay`. Dedicated loops finish with the reference hidden so replay returns cleanly to the result preview.
+
+### Ground and translucent shadows
+
+The ground remains opaque and receives shadows independently of the camera viewpoint. Scripted snapshot cameras stay above its surface. `pose-shadow.js` preserves the template’s continuous PCF shadow silhouette and fades overall light shadow strength with pose visibility. It uses no alpha-hashed depth material or random pixel rejection, avoiding speckled shadows.
