@@ -41,16 +41,16 @@ test('completion stay fits a global rotation review and preserves recipe hold ti
  const a=plan.sample(finish.start+100),b=plan.sample(finish.end-100);
  assert.notDeepEqual(a.camera,b.camera);assert.ok(b.focus<a.focus);assert.ok(b.selectedPose>a.selectedPose);
  for(const [index,key] of ['turn','bend','tilt'].entries()){
-  const fraction=.34+.54*(index+.625)/3,state=plan.sample(finish.start+finish.duration*fraction);
+  const fraction=.34+.54*(index+.625)/3,state=plan.sample(finish.start+finish.duration*(.2+.8*fraction));
   close(state.values[key],plan.values[key]*.5);assert.equal(state.sectors.length,2);
   assert.deepEqual(state.camera,b.camera);
-  const at=part=>plan.sample(finish.start+finish.duration*(.34+.54*(index+part)/3));
+  const at=part=>plan.sample(finish.start+finish.duration*(.2+.8*(.34+.54*(index+part)/3)));
   const pauseStart=at(.02),pauseEnd=at(.23);
   assert.deepEqual(pauseStart.values,pauseEnd.values);
   assert.deepEqual(pauseStart.referenceAxes,pauseEnd.referenceAxes);
   close(pauseEnd.values[key],0);
  }
- const reviewAt=f=>plan.sample(finish.start+finish.duration*f);
+ const reviewAt=f=>plan.sample(finish.start+finish.duration*(.2+.8*f));
  assert.deepEqual(reviewAt(.1).values,{turn:0,bend:0,tilt:0});
  assert.ok(reviewAt(.21).referenceAxes.opacity<.02);
  assert.ok(reviewAt(.23).referenceAxes.opacity<.1);

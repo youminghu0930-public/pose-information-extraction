@@ -1,11 +1,14 @@
+import {reviewTiming} from './review-timing.js';
 import {cameraOrientation,cameraBetween,uprightCameraBetween} from './camera.js';
 import {ease,clamp} from '../ui/timeline.js';
 // One continuous global view: reveal the pose, fade-reset the axes, replay Y–X–Z.
 export function createRotationReview(reference,rotation){
  const direction=reference.z.map((n,i)=>n+.65*reference.x[i]+.35*reference.y[i]);
  const view=cameraOrientation(direction,reference.y),focus=.32,pose=.3;
- function sample(state,progress){
-  const p=clamp(progress);
+ function sample(state,progress,duration){
+  const timing=reviewTiming(progress,duration);
+  if(timing.holding)return rotation.sample(state,{id:'finish'},1);
+  const p=clamp(timing.progress);
   if(p<.22){
    rotation.sample(state,{id:'finish'},1);
    const start=cameraOrientation(state.camera.direction,state.camera.up),t=ease(p/.22);

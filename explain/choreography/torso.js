@@ -40,7 +40,7 @@ export function createTorsoChoreography(model){
   }
   if(s.id.startsWith('reference-')){
    state.referencePose=.28;state.selectedPose=0;state.referenceAxes=sampleConstruction('reference');
-   Object.assign(state,cameras.reference(s.step==='orthogonalize'?'orthogonalize':'hold',1));
+   Object.assign(state,cameras.reference(s.step==='orthogonalize'?'orthogonalize':['plane','forward','plane-fade'].includes(s.step)?'cross-hold':'hold',1));
    return state;
   }
   state.referenceAxes=completedAxes(frames.reference);
@@ -48,7 +48,7 @@ export function createTorsoChoreography(model){
   state.referencePose=0;
   if(s.id.startsWith('torso-')){
    state.selectedPose=.28;state.torsoAxes=sampleConstruction('torso');
-   Object.assign(state,cameras.torso(s.step==='orthogonalize'?'orthogonalize':'hold',1));
+   Object.assign(state,cameras.torso(s.step==='orthogonalize'?'orthogonalize':['plane','forward','plane-fade'].includes(s.step)?'cross-hold':'hold',1));
    return state;
   }
   state.torsoAxes=completedAxes(frames.torso,.42);
@@ -58,7 +58,7 @@ export function createTorsoChoreography(model){
    state.referenceAxes=completedAxes({...frames.reference,origin:mix(frames.reference.origin,frames.torso.origin,p),length:frames.reference.length*(1-p)+frames.torso.length*p});state.focus=ease(clamp((p-.7)/.3));return state;
   }
   state.focus=1;
-  if(s.id==='finish')return review.sample(state,progress);
+  if(s.id==='finish')return review.sample(state,progress,s.duration);
   rotation.sample(state,s,p);
   if(s.id==='reset'&&segments.find(segment=>segment.completion).duration>0){
    state.camera=cameraBetween(review.view,front,p);state.focus=review.focus*(1-p);

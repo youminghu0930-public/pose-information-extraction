@@ -23,7 +23,7 @@ test('hip-plane choreography exposes correct joints, projections and signed fina
 });
 test('each projection first reveals its pie and pauses while both vectors stay still',()=>{
  const plan=planFor();
- for(const [id,key,next] of [['baseline-angle','referenceAxes','baseline-project'],['hip-angle','torsoAxes','hip-project']]){
+ for(const [id,key,next] of [['baseline-angle','referenceAxes','baseline-project'],['lateral-angle','torsoAxes','lateral-project']]){
   const s=plan.segments.find(s=>s.id===id),a=sample(plan,id,1),b=plan.sample(s.end-1);
   assert.ok(s.duration-s.motionDuration>500);assert.deepEqual(a[key],b[key]);assert.equal(a[key].angleMarker.opacity,1);
   close(a[key].x.to,sample(plan,next,0)[key].x.to);
@@ -37,13 +37,13 @@ test('sampling the entire timeline stays finite and the review fits stay',()=>{
    const state=plan.sample(t);assert.ok(Number.isFinite(state.values.turn));
    for(const key of ['referenceAxes','torsoAxes'])if(state[key])for(const axis of ['x','y','z'])if(state[key][axis])for(const point of ['from','to'])assert.ok(state[key][axis][point].every(Number.isFinite));
   }
-  const a=plan.sample(finish.start+finish.duration*.42),b=plan.sample(finish.start+finish.duration*.47);
+  const a=plan.sample(finish.start+finish.duration*(.08+.92*.42)),b=plan.sample(finish.start+finish.duration*(.08+.92*.47));
   assert.deepEqual(a.referenceAxes,b.referenceAxes);assert.equal(a.values.turn,0);
   const end=plan.sample(finish.end-.001);assert.ok(Math.abs(end.values.turn-plan.values.turn)<1e-8);
  }
 });
 test('full reference frame waits for the plane, moves together and trims before projection',()=>{
- const plan=planFor(),order=['reference-grow','reference-forward','up-grow','plane','reference-align','reference-trim','baseline-project','baseline-fade','lateral-grow','hip-project','hip-fade','turn'];
+ const plan=planFor(),order=['reference-grow','reference-forward','up-grow','plane','reference-align','reference-trim','baseline-project','baseline-fade','lateral-grow','lateral-project','lateral-fade','turn'];
  const indexes=order.map(id=>plan.segments.findIndex(s=>s.id===id));
  indexes.forEach((index,i)=>{assert.ok(index>=0);if(i)assert.ok(index>indexes[i-1]);});
  const ref=sample(plan,'reference-plane-fade',1).referenceAxes;
@@ -66,7 +66,7 @@ test('full reference frame waits for the plane, moves together and trims before 
 });
 test('projection preserves the original until a separate fade leaves only its projection',()=>{
  const plan=planFor();
- for(const [projectId,fadeId,original,key] of [['baseline-project','baseline-fade','originalReferenceAxes','referenceAxes'],['hip-project','hip-fade','originalTorsoAxes','torsoAxes']]){
+ for(const [projectId,fadeId,original,key] of [['baseline-project','baseline-fade','originalReferenceAxes','referenceAxes'],['lateral-project','lateral-fade','originalTorsoAxes','torsoAxes']]){
   const a=sample(plan,projectId,.2),b=sample(plan,projectId,.8);
   assert.deepEqual(a[original],b[original]);assert.notDeepEqual(a[key].x.to,b[key].x.to);
   const fading=sample(plan,fadeId,.5);assert.ok(fading[original].opacity>0&&fading[original].opacity<a[original].opacity);
@@ -95,7 +95,7 @@ test('reference joint focus never replays the pose fade or resets the close-up c
 });
 test('camera settles facing the difference plane before each projection and stays upright',()=>{
  const plan=planFor();
- for(const prefix of ['baseline','hip']){
+ for(const prefix of ['baseline','lateral']){
   const ready=sample(plan,prefix+'-camera',1),angle=sample(plan,prefix+'-angle',0),moving=sample(plan,prefix+'-project',.5);
   assert.deepEqual(ready.camera,angle.camera);assert.deepEqual(ready.camera,moving.camera);
   assert.deepEqual(moving.camera.up,plan.frames.reference.y);
@@ -113,5 +113,30 @@ test('the rotation and review draw only one shared lower-spine arrow',()=>{
   assert.equal(state.referenceAxes.y,null);
   assert.ok(state.torsoAxes.y);
   assert.equal([state.referenceAxes,state.torsoAxes,state.originalReferenceAxes,state.originalTorsoAxes].filter(axes=>axes?.y).length,1);
+ }
+});
+test('shoulder variant uses the shoulder pair with the same lower spine and correct exported turn',()=>{
+ for(const file of fs.readdirSync(new URL('../materials/data/3d_results/',import.meta.url)).filter(f=>f.endsWith('.json'))){
+  const data=read('3d_results/'+file),metrics=read('metrics/'+file);
+  const frame=Math.min(300,data.reconstruction.length-1);
+  const entry={frame,type:'kinematic',subtype:'shoulder_turn_on_spine_plane',duration:30,stay:5};
+  const model=explainSnapshot(data,metrics,entry),plan=createSpinePlaneChoreography(model);
+  const growing=sample(plan,'lateral-grow',.5),up=sample(plan,'up-grow',.5);
+  assert.deepEqual(growing.jointHighlights[0].joints,['right_shoulder','left_shoulder']);
+  close(growing.torsoAxes.x.from,data.reconstruction[frame][data.joints.indexOf('right_shoulder')]);
+  assert.deepEqual(up.jointHighlights[0].joints,['root','torso']);
+  const finish=sample(plan,'turn',1);
+  close([finish.values.turn],[metrics.metrics.kinematic.shoulder_turn_on_spine_plane.turn[frame]]);
+  close(finish.referenceAxes.x.to,finish.torsoAxes.x.to);
+  assert.equal(plan.duration,35000);
+ }
+});
+
+test('completed result holds before review motion or value reset',()=>{
+ const plan=planFor(),finish=plan.segments.find(s=>s.id==='finish');
+ const final=sample(plan,'turn',1);
+ for(const offset of [0,300,1000]){
+  const state=plan.sample(finish.start+offset);
+  for(const key of ['referenceAxes','torsoAxes','camera','values','plane','pairFocus','selectedPose'])assert.deepEqual(state[key],final[key]);
  }
 });

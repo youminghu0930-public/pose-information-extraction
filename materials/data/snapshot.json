@@ -4,13 +4,19 @@
       "video": "00",
       "frame": 300,
       "duration": 30,
-      "stay":15
+      "stay": 15
     },
-    "hip_turn_on_spine_plane":{
+    "hip_turn_on_spine_plane": {
       "video": "00",
       "frame": 300,
       "duration": 30,
-      "stay":5
+      "stay": 5
+    },
+    "shoulder_turn_on_spine_plane": {
+      "video": "00",
+      "frame": 300,
+      "duration": 30,
+      "stay": 5
     }
   }
 }
