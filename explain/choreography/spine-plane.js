@@ -21,9 +21,11 @@ export function createSpinePlaneChoreography(model){
  const lateral=c.lateral(joint),spine=c.spine('lower');
  const sourcePair=feature=>({from:c.source(feature.from),to:c.source(feature.to),joints:feature.joints});
  const pairs={lateral:sourcePair(lateral),up:sourcePair(spine)};
- const origin=pairs.up.from,n=unit(sub(pairs.up.to,origin)),raw=unit(sub(pairs.lateral.to,pairs.lateral.from));
+ // Translate the measurement frame without changing its lower-spine normal.
+ const origin=joint==='shoulder'?mul(add(pairs.lateral.from,pairs.lateral.to),.5):pairs.up.from;
+ const n=unit(sub(pairs.up.to,pairs.up.from)),raw=unit(sub(pairs.lateral.to,pairs.lateral.from));
  const base=reference.x,x=unit(project(base,n)),target=unit(project(raw,n)),z=unit(cross(x,n));
- const L=Math.max(Math.hypot(...sub(pairs.lateral.to,pairs.lateral.from))*.65,Math.hypot(...sub(pairs.up.to,origin)));
+ const L=Math.max(Math.hypot(...sub(pairs.lateral.to,pairs.lateral.from))*.65,Math.hypot(...sub(pairs.up.to,pairs.up.from)));
  const frame={origin,x,y:n,z,length:L},torso={...frame,x:target,z:unit(cross(target,n))};
  const values={turn:model.items[0].computed};
  const front=referenceOverview(reference),oblique=cameraOrientation(add(add(z,mul(x,.5)),mul(n,.65)),reference.y),face=cameraOrientation(n,reference.y);

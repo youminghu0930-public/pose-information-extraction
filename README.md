@@ -221,3 +221,7 @@ Reference-direction resets during angular review use `referenceResetOpacity` in 
 
 
 Target vectors also fade explicitly during angular review resets. `fadeReviewTarget` handles changes of target direction within an existing renderer, including the horizontal-to-inclined target switch between shoulder/hip turn and tilt. These fade out, reset while hidden, then fade in; detecting component presence alone would miss them.
+
+### Short in-window step captions
+
+`captions.js` keeps concise action-and-purpose wording separate from choreography and rendering. It covers every step of the eight metric demos, including preparation, measurement and review. `ui/captions.js` displays the text at the bottom of the 3D window on a translucent dark green background, cross-fading during playback and updating immediately when seeking. The overlay does not intercept clicks, pan or zoom, and respects reduced-motion settings. Fixed header descriptions remain available above the window.

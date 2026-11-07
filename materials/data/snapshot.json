@@ -3,46 +3,46 @@
     "torso_turn_bend_tilt": {
       "video": "00",
       "frame": 300,
-      "duration": 30,
+      "duration": 40,
       "stay": 15
     },
     "shoulder_turn_on_spine_plane": {
       "video": "00",
       "frame": 300,
-      "duration": 30,
-      "stay": 5
+      "duration": 40,
+      "stay": 15
     },
     "hip_turn_on_spine_plane": {
       "video": "00",
       "frame": 300,
-      "duration": 30,
-      "stay": 5
+      "duration": 40,
+      "stay": 15
     }
   },
   "geometric": {
     "spine_bend_tilt": {
       "video": "00",
       "frame": 300,
-      "duration": 30,
-      "stay": 5
+      "duration": 40,
+      "stay": 15
     },
     "spine_azimuth_polar_spin": {
       "video": "00",
       "frame": 300,
       "duration": 40,
-      "stay": 10
+      "stay": 15
     },
     "shoulder_turn_tilt": {
       "video": "00",
       "frame": 300,
-      "duration": 30,
-      "stay": 5
+      "duration": 40,
+      "stay": 15
     },
     "hip_turn_tilt": {
       "video": "00",
       "frame": 300,
-      "duration": 30,
-      "stay": 5
+      "duration": 40,
+      "stay": 15
     }
   },
   "position": {
@@ -50,7 +50,7 @@
       "video": "00",
       "frame": 300,
       "duration": 40,
-      "stay": 10
+      "stay": 15
     }
   }
 }

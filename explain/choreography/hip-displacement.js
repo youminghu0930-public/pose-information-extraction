@@ -61,6 +61,8 @@ export function createHipDisplacementChoreography(model){
  }
  function components(state,key,amount,guideOpacity=0){
   const active=order.indexOf(key);state.active=key;state.values={sway:0,thrust:0,lift:0};
+  const current=g.components[active],cursor=mix(current.from,current.to,amount);
+  state.guides.push(guide('displacement',cursor,g.selectedRoot,'#8b9198',{kind:'line',width:1.7,dashed:true}));
   g.components.forEach((v,i)=>{
    const p=i<active?1:i===active?amount:0;state.values[v.key]=v.value*p;
    if(p>0)state.guides.push(guide(v.key,v.from,mix(v.from,v.to,p),axisColors[v.axis],{width:i===active?4.5:3.4}));
@@ -95,15 +97,16 @@ export function createHipDisplacementChoreography(model){
   if(s.id==='root-camera')return state;
   roots(state,s.id==='root-markers'?p:1);
   if(s.id==='root-markers')return state;
-  state.guides.push(guide('displacement',g.referenceRoot,mix(g.referenceRoot,g.selectedRoot,s.id==='displacement'?p:1),'#507867',{width:2.7,opacity:has(s,'sway-ready')?.25:1}));
-  if(s.id==='displacement')return state;
+  if(s.id==='displacement'){
+   state.guides.push(guide('displacement',g.referenceRoot,mix(g.referenceRoot,g.selectedRoot,p),'#8b9198',{kind:'line',width:1.7,dashed:true}));return state;
+  }
   for(const key of order)if(s.id===key+'-ready'||s.id===key){const fade=s.id===key?1-ease(clamp((time-s.start-s.motionDuration)/(s.duration-s.motionDuration))):p;components(state,key,s.id===key?p:0,fade);return state;}
   components(state,'lift',1);
   if(s.id==='finish'){
    const timing=reviewTiming(progress,s.duration);if(timing.holding)return state;
    const q=timing.progress;
    state.camera=between(hipView,hipView,1);state.pairFocus={points:measurementPoints,amount:1};
-   state.guides=state.guides.filter(v=>!order.includes(v.id)&&!v.id.startsWith('axis-measure-')&&!v.id.startsWith('axis-connector-')&&v.id!=='measurement-cursor');
+   state.guides=state.guides.filter(v=>!order.includes(v.id)&&!v.id.startsWith('axis-measure-')&&!v.id.startsWith('axis-connector-')&&v.id!=='measurement-cursor'&&v.id!=='displacement');
    if(q<.22){state.values={sway:0,thrust:0,lift:0};state.guides=state.guides.map(v=>v.id==='displacement'?{...v,opacity:.25*(1-q/.22)}:v);}
    else{const position=(q-.22)/.78*3,i=Math.min(2,Math.floor(position)),amount=ease(clamp((position-i-.24)/.76));const phase=position-i,fade=ease(clamp(phase/.18))*(1-ease(clamp((phase-.85)/.15)));components(state,order[i],amount,fade);}
   }

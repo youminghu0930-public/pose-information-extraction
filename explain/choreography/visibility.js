@@ -21,6 +21,7 @@ function components(state){
    const spec=axes[axis];add(key+'.'+axis,spec,'opacity',parent,span(spec),{from:spec.from,to:spec.to,color:spec.color??spec.colorAxis??axis,shape:spec.shape??'arrow'});
   }
   for(const marker of ['angleMarker','projectionSweep'])if(axes[marker])add(key+'.'+marker,axes[marker],'opacity',parent,Math.abs(axes[marker].angle));
+  if(axes.componentPlane)add(key+'.componentPlane',axes.componentPlane,'opacity',parent,axes.componentPlane.size);
   if(axes.plane>0)add(key+'.plane',axes,'planeOpacity',parent,axes.plane);
  }
  if(state.plane){

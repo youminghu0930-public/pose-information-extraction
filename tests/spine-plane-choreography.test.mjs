@@ -140,3 +140,19 @@ test('completed result holds before review motion or value reset',()=>{
   for(const key of ['referenceAxes','torsoAxes','camera','values','plane','pairFocus','selectedPose'])assert.deepEqual(state[key],final[key]);
  }
 });
+
+test('shoulder turn measures and reviews at shoulder center while retaining the lower-spine axis',()=>{
+ const plan=planFor({subtype:'shoulder_turn_on_spine_plane'});
+ const joint=name=>data.reconstruction[300][data.joints.indexOf(name)];
+ const center=joint('left_shoulder').map((v,i)=>(v+joint('right_shoulder')[i])/2);
+ close(plan.frames.torso.origin,center);
+ close(plan.frames.torso.y,unit(sub(joint('torso'),joint('root'))));
+ for(const id of ['baseline-project','lateral-project','turn','finish']){
+  const state=sample(plan,id,.6);
+  close(state.referenceAxes.x.from,center);
+  if(state.torsoAxes?.x)close(state.torsoAxes.x.from,center);
+  close(state.plane.origin,center);
+  for(const sector of state.sectors)close(sector.origin,center);
+ }
+ close(planFor().frames.torso.origin,joint('root'));
+});

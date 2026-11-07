@@ -452,7 +452,7 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
 .snapshot-explain-layout .explain-item-options button strong { font-size:18px;color:var(--metric-axis-color,var(--accent)); }
 .snapshot-explain-layout .explain-item-options button[aria-pressed=true] { border-color:var(--metric-axis-color,var(--accent));box-shadow:inset 3px 0 var(--metric-axis-color,var(--accent)); }
 .explain-time-slider { width:100%;height:18px;margin:0;accent-color:var(--accent);cursor:pointer; }
-.snapshot-explain-layout .explain-time-slider,.snapshot-explain-layout progress { grid-column:1 / -1;grid-row:2; }
+.snapshot-explain-layout .explain-time-slider,.snapshot-explain-layout progress { grid-column:1;grid-row:2; }
 .metric-explanation progress { width:100%;height:3px;border:0;accent-color:var(--accent); }
 .pose-snapshots .snapshot-explained canvas { height:460px; }
 .explain-flat-axes { position:absolute;top:0;left:0;pointer-events:none;z-index:3;overflow:hidden; }
@@ -517,3 +517,18 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
   -webkit-user-drag: none;
 }
 .frame-slider:focus:not(:focus-visible), .explain-time-slider:focus:not(:focus-visible) { outline: none; }
+
+/* Short video-style explanations stay inside the 3D window. */
+.explain-step-caption {
+  position:absolute;left:16px;right:16px;bottom:18px;z-index:8;
+  display:grid;justify-items:center;pointer-events:none;text-align:center;
+}
+.explain-step-caption-text {
+  grid-area:1 / 1;align-self:end;max-width:520px;padding:8px 12px;
+  border-radius:6px;background:rgb(12 59 43 / 76%);color:#f6fff9;
+  font-size:14px;font-weight:500;line-height:1.5;text-wrap:pretty;
+}
+@media(max-width:600px) {
+  .explain-step-caption { left:10px;right:10px;bottom:12px; }
+  .explain-step-caption-text { font-size:12px;padding:7px 10px; }
+}

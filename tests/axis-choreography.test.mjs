@@ -199,3 +199,21 @@ test('torso axes are built at the shoulders, then translated to the hip midpoint
   }
  }
 });
+
+test('component projection plane is independent of the later cross-product plane',()=>{
+ const {plan}=setup();
+ for(const prefix of ['reference','torso']){
+  const frame=plan.frames[prefix];
+  const reveal=plan.segments.find(s=>s.id===prefix+'-angle-reveal');
+  const removal=plan.segments.find(s=>s.id===prefix+'-orthogonalize');
+  const axesAt=(segment,f)=>plan.sample(segment.start+(segment.motionDuration??segment.duration)*f)[prefix==='reference'?'referenceAxes':'torsoAxes'];
+  const first=axesAt(reveal,0),shown=axesAt(reveal,1),removing=axesAt(removal,.5),last=axesAt(removal,1);
+  assert.equal(first.componentPlane.opacity,0);assert.equal(shown.componentPlane.opacity,1);
+  assert.equal(removing.componentPlane.opacity,1);assert.equal(last.componentPlane.opacity,0);
+  assert.ok(Math.abs(dot(shown.componentPlane.u,frame.y))<1e-10);
+  assert.ok(Math.abs(dot(shown.componentPlane.v,frame.y))<1e-10);
+  assert.equal(shown.plane,0);
+  const cross=plan.segments.find(s=>s.id===prefix+'-plane'),crossAxes=axesAt(cross,1);
+  assert.equal(crossAxes.componentPlane,undefined);assert.equal(crossAxes.plane,1);
+ }
+});

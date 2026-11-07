@@ -131,3 +131,22 @@ test('stay review keeps the measurement camera and framing still',()=>{
  }
  const reset=at(plan,'reset',0);close(reset.camera.direction,measurement.camera.direction);assert.deepEqual(reset.pairFocus,measurement.pairFocus);
 });
+
+test('gray dashed remaining-displacement connector follows the cursor instead of a static root line',()=>{
+ const {plan}=setup(),g=plan.geometry;
+ for(const key of ['sway','thrust','lift']){
+  const state=at(plan,key,.5),connector=state.guides.find(v=>v.id==='displacement');
+  close(connector.from,state.guides.find(v=>v.id==='measurement-cursor').from);
+  close(connector.to,g.selectedRoot);
+  assert.equal(connector.kind,'line');assert.equal(connector.dashed,true);assert.equal(connector.color,'#8b9198');
+  assert.equal(state.guides.filter(v=>v.id==='displacement').length,1);
+ }
+ const initial=at(plan,'displacement',.5).guides.find(v=>v.id==='displacement');
+ assert.equal(initial.dashed,true);
+ const finish=plan.segments.find(s=>s.id==='finish');
+ for(const fraction of [.3,.5,.9]){
+  const state=plan.sample(finish.start+finish.duration*fraction),connectors=state.guides.filter(v=>v.id==='displacement');
+  assert.ok(connectors.length<=1);
+  for(const connector of connectors){assert.equal(connector.dashed,true);close(connector.from,state.guides.find(v=>v.id==='measurement-cursor').from);}
+ }
+});
