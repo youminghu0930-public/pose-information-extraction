@@ -5,7 +5,7 @@ import {PerspectiveCamera,Vector3} from '../vendor/three/three.module.js';
 import {explainSnapshot} from '../explain/index.js';
 import {createTorsoChoreography} from '../explain/choreography/torso.js';
 import {jointPairPresentation} from '../explain/choreography/joint-pair.js';
-import {fitPairCamera} from '../explain/ui/camera-framing.js';
+import {fitPairCamera,fitViewDistance} from '../explain/ui/camera-framing.js';
 import {arrowShape} from '../explain/ui/arrow-shape.js';
 import {dot,sub,length} from '../explain/math.js';
 const read=p=>JSON.parse(fs.readFileSync(new URL('../materials/data/'+p,import.meta.url),'utf8'));
@@ -93,4 +93,21 @@ test('close-up framing releases continuously into the review zoom',()=>{
  assert.ok(Math.abs(almost.zoom-zero.zoom)<.000001);
  const close=fitPairCamera({points,amount:1},p=>new Vector3(...p),Math.PI/8,distance,target,zoom);
  assert.equal(close.zoom,1);
+});
+
+test('snapshot framing uses the real viewport and projected subject extents after panel resizing',()=>{
+ const points=[[-.3,-1.2,-.1],[.3,1.2,.1],[-.2,.4,.3]].map(p=>new Vector3(...p));
+ const target=new Vector3(),direction=new Vector3(.4,.2,1).normalize(),up=new Vector3(0,1,0),half=Math.PI/8;
+ for(const aspect of [.55,.9,1.7]){
+  const distance=fitViewDistance(points,target,direction,up,half,aspect),camera=new PerspectiveCamera(45,aspect,.001,100);
+  camera.position.copy(target).addScaledVector(direction,distance);camera.up.copy(up);camera.lookAt(target);camera.updateMatrixWorld();
+  for(const point of points){const p=point.clone().project(camera);assert.ok(Math.abs(p.x)<.85&&Math.abs(p.y)<.85);}
+  if(aspect===.55){
+   const radius=Math.max(...points.map(p=>p.length())),sphereDistance=radius/(Math.sin(Math.atan(Math.tan(half)*aspect))*.84);
+   assert.ok(distance<sphereDistance*.75,'portrait layout should not shrink a tall pose to fit a sphere');
+  }
+  const fit=fitPairCamera({points:points.map(p=>p.toArray()),amount:1},p=>new Vector3(...p),half,20,target,1,{direction,up,verticalHalfFov:half,aspect});
+  camera.position.copy(fit.target).addScaledVector(direction,fit.distance);camera.lookAt(fit.target);camera.updateMatrixWorld();
+  for(const point of points){const p=point.clone().project(camera);assert.ok(Math.abs(p.x)<.8&&Math.abs(p.y)<.8);}
+ }
 });

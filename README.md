@@ -225,3 +225,23 @@ Target vectors also fade explicitly during angular review resets. `fadeReviewTar
 ### Short in-window step captions
 
 `captions.js` keeps concise action-and-purpose wording separate from choreography and rendering. It covers every step of the eight metric demos, including preparation, measurement and review. `ui/captions.js` displays the text at the bottom of the 3D window on a translucent dark green background, cross-fading during playback and updating immediately when seeking. The overlay does not intercept clicks, pan or zoom, and respects reduced-motion settings. Fixed header descriptions remain available above the window.
+
+### Shared snapshot settings and pose selections
+
+`materials/data/snapshot.json` now lists `selections: [{video, frame}, …]` separately from `metrics: {type: {subtype: settings}}`. The metric navigator stays on the left; the right-side pose selector changes the video/frame while preserving the chosen metric. Every metric config applies to every selection, and the build validates all combinations.
+
+Settings are seconds: `start_stay` shows the selected pose and final values, `explain` controls the complete explanation, `review` replays the measurement and includes the final helper fade-out, and `end_stay` holds only the selected pose and final values. Stays and review can be zero; `explain` must be positive. Explanation steps retain their relative tempo. With 5/40/15/5, each loop lasts 65 seconds.
+
+### Snapshot navigation
+
+Left-drag (one finger) rotates; right-drag (two fingers) pans; wheel/pinch zooms. Pan and zoom have no authored limits. Start, Review and End permit rotation during playback; Explain permits rotation only while paused. Resuming Explain restores only the manual rotation over 750 ms, holding the timeline until the return finishes and preserving pan/zoom. Pausing during the return stops it. The top-right reset icon smoothly restores rotation, pan and zoom without changing the timeline or play/pause state. `view-navigation.js` owns these offsets independently of scripted choreography.
+
+Overview rotation uses the template’s fixed bounding-box center across the configured recording range, including club joints; it stays the same when selecting another pose in the same range. Construction and measurement close-ups retain their own focus centers. All camera paths, manual rotations and reset/resume transitions stay above the ground surface.
+
+Manual rotation keeps the scripted orbit radius stable: automatic fitting uses the scripted camera direction, not the dragged direction. The ground constraint clamps elevation on the same orbit sphere, preserving both the pivot and distance. Zoom remains a separate projection adjustment.
+
+Review keeps Explain’s rotation restriction until its camera completes the initial hold and approach. Once settled, angular reviews orbit around the angle’s intersection; T reviews orbit around the body T’s crossbar/stem intersection. Translation retains its existing camera focus. These manual pivots are independent of scripted framing and preserve orbit distance.
+
+### Independent review transition
+
+Metric configs include `transition` (nonnegative seconds) alongside `start_stay`, `explain`, `review`, and `end_stay`. It separately controls the final-result hold, camera approach and helper reset before replay; changing it does not change replay tempo. The timeline still has four tags: Explain spans `explain + transition`, and Review starts only after setup is complete. Explain’s pause-to-rotate and smooth-resume rules cover the transition. Review has no rotation lock. Its angle/T intersection pivots remain unchanged.

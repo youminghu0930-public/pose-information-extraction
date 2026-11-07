@@ -13,3 +13,15 @@ export function faceOnFraming(detections){
   const height=Math.max(1,box[3]-box[1]);
   return {x:(box[0]+box[2])/2,y:(box[1]+box[3])/2+height*.08,width:Math.max((box[2]-box[0])*1.15,height*.95),height:height*1.35};
 }
+
+// Template overview pivot: fixed AABB center over the configured frame range.
+// Every valid joint participates, including club joints.
+export function rotationBoundsCenter(frames,start=0,end=frames.length-1){
+ const low=[Infinity,Infinity,Infinity],high=[-Infinity,-Infinity,-Infinity];let count=0;
+ for(let frame=start;frame<=end;frame++)for(const point of frames[frame]??[]){
+  if(!Array.isArray(point)||point.length!==3||!point.every(Number.isFinite))continue;
+  count++;for(let i=0;i<3;i++){low[i]=Math.min(low[i],point[i]);high[i]=Math.max(high[i],point[i]);}
+ }
+ if(!count)throw new Error('No valid 3D points for rotation center');
+ return low.map((value,i)=>(value+high[i])/2);
+}

@@ -1,3 +1,4 @@
+import {separateReviewTransition} from './review-transition.js';
 import {add,sub,mul,length} from '../math.js';
 import {axisColors} from '../palette.js';
 import {openingSegments,sampleOpening} from './opening.js';
@@ -26,7 +27,7 @@ export function createHipDisplacementChoreography(model){
   action('selected-focus',1400),action('root-camera',2000),action('root-markers',1000),action('displacement',1800),
   ...order.flatMap(key=>[action(key+'-ready',600,800),action(key,2200,800)]),
   {id:'finish',title:'Review hip displacement',duration:8000,completion:true},action('reset',1200)];
- const duration=scheduleTimeline(segments,c.entry.duration,c.entry.stay),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
+ const duration=scheduleTimeline(segments,c.entry),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
  const points=[...c.reference,...c.pose].map(c.source),measurementPoints=cameraFocusBounds(g.components.flatMap(v=>[v.from,v.to]));
  const rowBase=add(g.referenceRoot,add(mul(reference.x,g.scale*2.1),mul(up,g.scale*.7))),meanStart=add(rowBase,mul(up,-g.scale*.63));
  const meanEnd=add(meanStart,mul(reference.x,g.scale)),alignedEnd=add(g.referenceRoot,mul(reference.x,g.scale));
@@ -70,7 +71,7 @@ export function createHipDisplacementChoreography(model){
   state.guides.push(...displacementAxisGuides(g.referenceRoot,g.components,active,amount,guideOpacity));
  }
  function sampleState(time){
-  const s=segments.find(s=>time<s.end)??segments.at(-1),p=ease(clamp((time-s.start)/(s.motionDuration??s.duration))),progress=clamp((time-s.start)/s.duration);
+  const s=segments.find(s=>time<s.end)??segments.at(-1),p=ease(clamp((time-s.start)/Math.max(1e-9,s.motionDuration??s.duration))),progress=clamp((time-s.start)/Math.max(1e-9,s.duration));
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{sway:0,thrust:0,lift:0},active:null,focus:0,focusOrigin:g.referenceRoot,camera:between(front,front,1),guides:[],boneGuides:[],boneHighlights:[],sectors:[],jointHighlights:[],pairFocus:null,plane:null};
   if(sampleOpening(state,s,p,values))return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
@@ -117,5 +118,5 @@ export function createHipDisplacementChoreography(model){
   return state;
  }
  function sample(time){const state=sampleState(time);state.camera=uprightCamera(state.camera,up);return state;}
- return {segments,duration,values,geometry:g,frames:{reference,torso:{...reference,origin:g.referenceRoot}},sample};
+ return separateReviewTransition({segments,duration,values,geometry:g,frames:{reference,torso:{...reference,origin:g.referenceRoot}},sample},c.entry);
 }

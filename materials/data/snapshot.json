@@ -1,56 +1,22 @@
 {
-  "kinematic": {
-    "torso_turn_bend_tilt": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
+  "selections":[
+    {"video":"00", "frame":300},
+    {"video":"01", "frame":480}
+  ],
+  "metrics": {
+    "kinematic": {
+      "torso_turn_bend_tilt":         {"start_stay":1.5, "explain":40, "transition":1, "review":10, "end_stay":1},
+      "shoulder_turn_on_spine_plane": {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1},
+      "hip_turn_on_spine_plane":      {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1}
     },
-    "shoulder_turn_on_spine_plane": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
+    "geometric": {
+      "spine_bend_tilt":              {"start_stay":1.5, "explain":40, "transition":1, "review":7, "end_stay":1},
+      "spine_azimuth_polar_spin":     {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1},
+      "shoulder_turn_tilt":           {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1},
+      "hip_turn_tilt":                {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1}
     },
-    "hip_turn_on_spine_plane": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
-    }
-  },
-  "geometric": {
-    "spine_bend_tilt": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
-    },
-    "spine_azimuth_polar_spin": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
-    },
-    "shoulder_turn_tilt": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
-    },
-    "hip_turn_tilt": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
-    }
-  },
-  "position": {
-    "hip_sway_thrust_lift": {
-      "video": "00",
-      "frame": 300,
-      "duration": 40,
-      "stay": 15
+    "position": {
+      "hip_sway_thrust_lift":         {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1}
     }
   }
 }

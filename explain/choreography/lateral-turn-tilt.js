@@ -1,3 +1,4 @@
+import {separateReviewTransition} from './review-transition.js';
 import {fadeReviewTarget} from './review-timing.js';
 import {highlightRotationAxis} from './rotation-highlight.js';
 import {blendAxisColors} from '../palette.js';
@@ -34,7 +35,7 @@ export function createLateralTurnTiltChoreography(model){
   action('projection-camera',1500),action('projection-angle',700,2300),action('projection',1800),action('original-fade',1100),
   action('turn-camera',1500),action('turn',3400),action('tilt-camera',1600),action('tilt-ready',1100),action('tilt',3400),
   {id:'finish',title:'Review '+(entry.subtype.startsWith('hip')?'hip':'shoulder')+' turn and tilt',duration:6000,completion:true},action('reset',1200)];
- const duration=scheduleTimeline(segments,entry.duration,entry.stay),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
+ const duration=scheduleTimeline(segments,entry),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
  const arrow=d=>({from:origin,to:add(origin,mul(d,L))});
  function axes(d,opacity=1){const axes=completedAxes(frame,opacity);axes.x=arrow(d);axes.y=null;axes.z=null;return axes;}
  function referenceAxes(d){return axes(d);}
@@ -48,7 +49,7 @@ export function createLateralTurnTiltChoreography(model){
   state.values=result.values;state.active=key;state.sectors=[{...result.sector,origin,radius:L*.8}];highlightRotationAxis(state,p);
  }
  function sampleState(time){
-  const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
+  const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/Math.max(1e-9,s.duration)),p=ease(clamp(elapsed/Math.max(1e-9,s.motionDuration??s.duration)));
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{turn:0,tilt:0},active:null,focus:0,focusOrigin:origin,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null,plane:null};
   if(sampleOpening(state,s,p,values))return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
@@ -110,5 +111,5 @@ export function createLateralTurnTiltChoreography(model){
   return state;
  }
  function sample(time){const state=sampleState(time);fadeReviewTarget(state,segments,.38,[{at:.64,ready:.71}]);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,up);return state;}
- return {segments,duration,frames:{reference,torso},values,sample};
+ return separateReviewTransition({segments,duration,frames:{reference,torso},values,sample},entry);
 }

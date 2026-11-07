@@ -1,3 +1,4 @@
+import {separateReviewTransition} from './review-transition.js';
 import {fadeReviewTarget} from './review-timing.js';
 import {highlightRotationAxis} from './rotation-highlight.js';
 import {openingSegments,sampleOpening} from './opening.js';
@@ -38,7 +39,7 @@ export function createSpineTChoreography(model){
   ...pairStages('spine'),action('shoulder-camera',1500),...pairStages('shoulder'),action('crossbar-plane',1300),action('crossbar-camera',1500),action('crossbar-angle',700,1700),action('crossbar-project',1800),action('crossbar-original-fade',1100),action('reference-t',1500,1000),
   ...['azimuth','polar','spin'].flatMap(key=>[action(key+'-camera',1600),...(key==='azimuth'?[action('azimuth-plane',1300)]:[]),action(key+'-ready',650,900),action(key,3400),...(key==='azimuth'?[action('forward-fade',1100)]:[])]),
   {id:'finish',title:'Review the T orientation',duration:8000,completion:true},action('reset',1200)];
- const duration=scheduleTimeline(segments,entry.duration,entry.stay),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
+ const duration=scheduleTimeline(segments,entry),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
  const empty=(opacity=1)=>{const a=completedAxes(frame,opacity);a.x=a.y=a.z=null;return a;};
  const stemEnd=f=>add(origin,mul(f.y,stemLength));
  function tShape(f,opacity=1){
@@ -59,7 +60,7 @@ export function createSpineTChoreography(model){
   state.sectors=rotation.sectors(key,values[key]*p).map(sector=>({...sector,origin:key==='spin'?pairs.spine.to:origin,radius:key==='spin'?halfWidth*.9:stemLength*.65}));highlightRotationAxis(state,p);
  }
  function sampleState(time){
-  const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
+  const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/Math.max(1e-9,s.duration)),p=ease(clamp(elapsed/Math.max(1e-9,s.motionDuration??s.duration)));
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{azimuth:0,polar:0,spin:0},active:null,focus:0,focusOrigin:origin,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null,plane:null};
   if(sampleOpening(state,s,p,values))return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
@@ -145,5 +146,5 @@ export function createSpineTChoreography(model){
   }
   state.camera=uprightCamera(state.camera,up);return state;
  }
- return {segments,duration,frames:{reference,torso:target},values,sample};
+ return separateReviewTransition({segments,duration,frames:{reference,torso:target},values,sample},entry);
 }

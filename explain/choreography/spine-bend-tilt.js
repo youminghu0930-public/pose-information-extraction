@@ -1,3 +1,4 @@
+import {separateReviewTransition} from './review-transition.js';
 import {fadeReviewTarget} from './review-timing.js';
 import {highlightRotationAxis} from './rotation-highlight.js';
 import {openingSegments,sampleOpening} from './opening.js';
@@ -32,7 +33,7 @@ export function createSpineBendTiltChoreography(model){
   ...['focus','grow','release','align'].map(phase=>action('spine-'+phase,phase==='grow'?1600:1100,500,{pairPhase:phase})),
   ...cycle('bend'),action('plane-switch',1400),action('tilt-plane',1400),...cycle('tilt'),
   {id:'finish',title:'Review spine bend and tilt',duration:6000,completion:true},action('reset',1200)];
- const duration=scheduleTimeline(segments,entry.duration,entry.stay),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
+ const duration=scheduleTimeline(segments,entry),index=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>segments.indexOf(s)>=index(id);
  const arrow=d=>({from:origin,to:add(origin,mul(d,L))});
  function axes(d,opacity=1){const a=completedAxes(frame,opacity);a.x=arrow(d);a.y=null;a.z=null;return a;}
  function plane(key,size=1,opacity=1){const d=definitions[key];return {origin,u:d.u,v:d.v,size:L*size,opacity,axis:d.axis};}
@@ -43,7 +44,7 @@ export function createSpineBendTiltChoreography(model){
   state.sectors=[{origin,from:definitions[key].measure.baseline,normal:definitions[key].measure.axis,angle:result.angle,radius:L*.8,axis:definitions[key].axis}];highlightRotationAxis(state,p);
  }
  function sampleState(time){
-  const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
+  const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/Math.max(1e-9,s.duration)),p=ease(clamp(elapsed/Math.max(1e-9,s.motionDuration??s.duration)));
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{bend:0,tilt:0},active:null,focus:0,focusOrigin:origin,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null,plane:null};
   if(sampleOpening(state,s,p,values))return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
@@ -94,12 +95,12 @@ export function createSpineBendTiltChoreography(model){
  function sample(time){
   const state=sampleState(time);fadeReviewTarget(state,segments,.38);
   // Retain a compact global reference independently of the measuring arrow.
-  if(index(state.segment)>=index('spine-focus')){
-   const remaining=state.segment==='reset'?1-ease(clamp((time-segments.at(-1).start)/(segments.at(-1).motionDuration??segments.at(-1).duration))):1;
+  if(state.segment!=='end-stay'&&index(state.segment)>=index('spine-focus')){
+   const remaining=state.segment==='reset'?1-ease(clamp((time-segments.find(s=>s.id==='reset').start)/(segments.find(s=>s.id==='reset').motionDuration??segments.find(s=>s.id==='reset').duration))):1;
    state.originalReferenceAxes=completedAxes({...frame,length:compactLength},.3*remaining);
   }
   if(state.segment==='reset')state.referencePose=0;
   state.camera=uprightCamera(state.camera,up);return state;
  }
- return {segments,duration,frames:{reference,torso},values,targetAxisColors:{x:'y'},sample};
+ return separateReviewTransition({segments,duration,frames:{reference,torso},values,targetAxisColors:{x:'y'},sample},entry);
 }

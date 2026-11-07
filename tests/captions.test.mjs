@@ -58,3 +58,60 @@ test('caption cues anticipate definitions and projections, and persist through s
  const times=[18000,4000,25000,12000];
  assert.deepEqual(times.map(t=>timeline.sample(t)),times.map(t=>createCaptionTimeline(model,plan).sample(t)));
 });
+
+test('all metrics honor four shared playback phases and clean pose-only stays for every selection',()=>{
+ const config=read('snapshot.json'),data=read('3d_results/00.json'),metrics=read('metrics/00.json');
+ const creators={torso_turn_bend_tilt:createTorsoChoreography,hip_turn_on_spine_plane:createSpinePlaneChoreography,shoulder_turn_on_spine_plane:createSpinePlaneChoreography,shoulder_turn_tilt:createLateralTurnTiltChoreography,hip_turn_tilt:createLateralTurnTiltChoreography,spine_bend_tilt:createSpineBendTiltChoreography,spine_azimuth_polar_spin:createSpineTChoreography,hip_sway_thrust_lift:createHipDisplacementChoreography};
+ for(const frame of config.selections.map(s=>s.frame))for(const [type,subtypes] of Object.entries(config.metrics))for(const [subtype,settings] of Object.entries(subtypes)){
+  const model=explainSnapshot(data,metrics,{type,subtype,frame,...settings}),plan=creators[subtype](model);
+  assert.ok(Math.abs(plan.duration-(settings.start_stay+settings.explain+(settings.transition??0)+settings.review+settings.end_stay)*1000)<1e-6);
+  assert.equal(plan.segments.find(s=>s.id==='result-preview').duration,settings.start_stay*1000);
+  assert.equal(plan.segments.find(s=>s.id==='finish').duration+plan.segments.find(s=>s.id==='reset').duration,settings.review*1000);
+  assert.ok(Math.abs(plan.segments.find(s=>s.id==='finish').start-(settings.start_stay+settings.explain+(settings.transition??0))*1000)<1e-6);
+  assert.ok(Math.abs(plan.segments.find(s=>s.id==='end-stay').start-(settings.start_stay+settings.explain+(settings.transition??0)+settings.review)*1000)<1e-6);
+  assert.equal(plan.segments.find(s=>s.id==='end-stay').duration,settings.end_stay*1000);
+  if(settings.transition!==undefined){
+   const setup=plan.segments.find(s=>s.id==='review-transition'),review=plan.segments.find(s=>s.id==='finish');
+   assert.equal(setup.duration,settings.transition*1000);
+   const longer=creators[subtype](explainSnapshot(data,metrics,{type,subtype,frame,...settings,transition:settings.transition+2}));
+   const longerReview=longer.segments.find(s=>s.id==='finish');
+   const a=plan.sample(review.start+review.duration*.7),b=longer.sample(longerReview.start+longerReview.duration*.7);
+   for(const key of Object.keys(a.values))assert.ok(Math.abs(a.values[key]-b.values[key])<1e-8,`${subtype}: transition changed replay tempo`);
+   const ready=plan.sample(review.start),settled=plan.sample(review.start+review.duration*.6);
+   for(const key of ['direction','up'])for(let i=0;i<3;i++)assert.ok(Math.abs(ready.camera[key][i]-settled.camera[key][i])<1e-8,`${subtype}: camera still moving in review`);
+  }
+
+  for(const id of ['result-preview','end-stay']){
+   const segment=plan.segments.find(s=>s.id===id),state=plan.sample(segment.start+segment.duration*.5);
+   assert.equal(state.referencePose,0);assert.equal(state.selectedPose,1);
+   for(const key of ['referenceAxes','torsoAxes','originalReferenceAxes','originalTorsoAxes','plane'])assert.ok(!state[key],`${subtype} ${id}: stray ${key}`);
+   assert.equal(state.sectors.length,0);assert.equal(state.guides?.length??0,0);
+   for(const item of model.items)assert.equal(state.values[item.key],item.computed);
+  }
+  const noStay=creators[subtype](explainSnapshot(data,metrics,{type,subtype,frame,start_stay:0,explain:10,review:0,end_stay:0}));
+  for(const t of [0,5000,9999,noStay.duration]){const state=noStay.sample(t);assert.ok(Object.values(state.values).every(Number.isFinite));assert.ok(Number.isFinite(state.progress));}
+ }
+});
+
+test('review rotation unlocks after camera arrival and uses the content intersection',async()=>{
+ const {reviewNavigation}=await import('../explain/choreography/review-navigation.js');
+ const data=read('3d_results/00.json'),metrics=read('metrics/00.json');
+ for(const [type,subtype,create] of [
+  ['kinematic','torso_turn_bend_tilt',createTorsoChoreography],
+  ['kinematic','hip_turn_on_spine_plane',createSpinePlaneChoreography],['kinematic','shoulder_turn_on_spine_plane',createSpinePlaneChoreography],
+  ['geometric','shoulder_turn_tilt',createLateralTurnTiltChoreography],['geometric','hip_turn_tilt',createLateralTurnTiltChoreography],
+  ['geometric','spine_bend_tilt',createSpineBendTiltChoreography],['geometric','spine_azimuth_polar_spin',createSpineTChoreography],
+  ['position','hip_sway_thrust_lift',createHipDisplacementChoreography],
+ ]){
+  const entry={type,subtype,frame:300,start_stay:2,explain:30,review:15,end_stay:2},plan=create(explainSnapshot(data,metrics,entry));
+  const finish=plan.segments.find(s=>s.id==='finish'),hold=Math.min(1200,finish.duration*.2),active=finish.duration-hold;
+  assert.equal(reviewNavigation(entry,plan,1000).restricted,false);
+  assert.equal(reviewNavigation(entry,plan,10000).restricted,true);
+  assert.equal(reviewNavigation(entry,plan,finish.start+hold+active*.21).restricted,type!=='position');
+  const time=finish.start+hold+active*.5,state=plan.sample(time),policy=reviewNavigation(entry,plan,time,state);
+  assert.equal(policy.restricted,false);
+  if(type==='position')assert.equal(policy.pivot,null);
+  else if(subtype==='spine_azimuth_polar_spin')assert.deepEqual(policy.pivot,state.torsoAxes.y.to);
+  else assert.deepEqual(policy.pivot,state.sectors[0].origin);
+ }
+});

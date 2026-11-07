@@ -113,7 +113,7 @@ function measurement(entry,key){
 function describeStep(model,segment,state){
  const entry=model.context.entry,id=segment.id,joint=entry.subtype.startsWith('hip')?'hips':'shoulders',tShape=entry.subtype==='spine_azimuth_polar_spin';
  if(id==='finish'){
-  const timing=reviewTiming(state.progress,segment.duration);
+  const timing=reviewTiming(state.progress,state.reviewDuration??segment.duration);
   if(timing.holding)return 'Hold the completed result so the final comparison is clear.';
   if(timing.progress<.22)return entry.type==='position'?'Reset the numbers to review each displacement component.':'Fade the comparison vectors so their directions can reset while hidden.';
   const returnEnd=tShape||entry.subtype.startsWith('torso_')?.34:entry.type==='geometric'?.38:.4;
@@ -142,7 +142,7 @@ function describeStep(model,segment,state){
 export function stepCaption(model,segment,state){
  const id=segment.id;
  if(id==='finish'){
-  const timing=reviewTiming(state.progress,segment.duration);
+  const timing=reviewTiming(state.progress,state.reviewDuration??segment.duration);
   if(timing.holding||!state.active)return null;
   const returnEnd=model.context.entry.subtype==='spine_azimuth_polar_spin'||model.context.entry.subtype.startsWith('torso_')?.34:model.context.entry.type==='geometric'?.38:.4;
   if(timing.progress<returnEnd)return null;

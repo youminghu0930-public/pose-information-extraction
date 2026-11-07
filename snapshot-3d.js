@@ -1,13 +1,15 @@
+import {rotationBoundsCenter} from './snapshot-framing.js';
 import {updatePoseShadowStrength} from './pose-shadow.js';
+import {createViewNavigation} from './explain/ui/view-navigation.js';
 import {mountViewInput} from './explain/ui/window-input.js';
 import {createPoseSurface} from './pose-surface.js';
-import {fitPairCamera} from './explain/ui/camera-framing.js';
+import {fitPairCamera,fitViewDistance} from './explain/ui/camera-framing.js';
 import {poseColors} from './explain/palette.js';
 import {mountSnapshotExplanation} from './explain/ui/snapshot.js';
 import {poseStructure} from './pose-structure.js';
 import {resolveSnapshot} from './snapshot-config.js';
 import * as THREE from './vendor/three/three.module.js';
-import {interpolateRotation,constrainCameraAboveGround} from './camera-flight.js';
+import {interpolateRotation,constrainCameraAboveGround,constrainOrbitAboveGround} from './camera-flight.js';
 const valid = p => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
 async function json(url) { const response = await fetch(url); if (!response.ok) throw new Error(`${url}: ${response.status}`); return response.json(); }
 export async function mountSnapshots(root,options={}){
@@ -39,7 +41,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   if (!points.length) throw new Error('No valid 3D points');
   const min = [0,1,2].map(axis => Math.min(...points.map(p=>p[axis])));
   const max = [0,1,2].map(axis => Math.max(...points.map(p=>p[axis])));
-  const center = min.map((v,i)=>(v+max[i])/2);
+  const center = snapshot?rotationBoundsCenter(frames,start,end):min.map((v,i)=>(v+max[i])/2);
   const radius = Math.max(...points.map(p=>Math.hypot(...p.map((v,i)=>v-center[i])))) || 1;
   const median = values => { const sorted = values.sort((a,b)=>a-b); return sorted[Math.floor(sorted.length/2)]; };
   const selectedFrames = displayedFrames;
@@ -58,7 +60,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   const unit = height > 0 ? height : radius;
   const vector = p => new THREE.Vector3((p[0]-center[0])/unit, -(p[1]-center[1])/unit, -(p[2]-center[2])/unit);
   let snapshotOverlayView;
-  let snapshotCamera,snapshotPairFocus;
+  let snapshotCamera,snapshotPairFocus,snapshotRotationPivot;
   const snapshotFocus=new THREE.Vector3();let snapshotFocusZoom=1;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#f4f7f0');
@@ -483,22 +485,34 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   // Frame the pose and its motion, independently of camera/plane extents.
   distanceScale=1;
   if(Object.keys(cameraVideos).length){yaw=-.65;pitch=.3;}
+  const navigation=snapshot?createViewNavigation(draw):null;
+  if(navigation)mediaCleanup.push(()=>navigation.dispose());
   let renderWidth=0,renderHeight=0;
   function draw() {
     const w=canvas.clientWidth,h=canvas.clientHeight;
     if(!w||!h)return;
     if(w!==renderWidth||h!==renderHeight){renderer.setSize(w,h,false);renderWidth=w;renderHeight=h;}
     camera.aspect=w/h;
-    camera.zoom=zoom*snapshotFocusZoom;
+    const viewZoom=navigation?.zoom??zoom,viewPanX=navigation?.panX??panX,viewPanY=navigation?.panY??panY;
+    camera.zoom=viewZoom*snapshotFocusZoom;
     // Shift the projection for panning, leaving the world-space orbit center fixed.
-    if(enablePan)camera.setViewOffset(w,h,-panX,-panY,w,h);
+    if(enablePan)camera.setViewOffset(w,h,-viewPanX,-viewPanY,w,h);
     // Fit the complete motion using the narrower viewport angle.
     camera.fov=45;
     const verticalHalfFov=THREE.MathUtils.degToRad(camera.fov/2);
     const halfFov=Math.min(verticalHalfFov,Math.atan(Math.tan(verticalHalfFov)*camera.aspect));
     let distance=bound*distanceScale/(Math.sin(halfFov)*.84);
     const cameraTarget=snapshotFocus.clone();
-    if(snapshotPairFocus){const fit=fitPairCamera(snapshotPairFocus,vector,halfFov,distance,cameraTarget,snapshotFocusZoom);cameraTarget.copy(fit.target);distance=fit.distance;camera.zoom=zoom*fit.zoom;}
+    let snapshotFitView;
+    if(snapshot&&snapshotCamera){
+      const direction=vector(snapshotCamera.direction.map((v,i)=>v+center[i])).normalize();
+      const up=vector(snapshotCamera.up.map((v,i)=>v+center[i])).normalize();
+      const manual=navigation.orient(direction,up);
+      // Fit the scripted view only. Manual orbit changes angle, never radius.
+      snapshotFitView={direction,up,verticalHalfFov,aspect:camera.aspect,manual};
+      distance=fitViewDistance(points.map(vector),cameraTarget,direction,up,verticalHalfFov,camera.aspect)*distanceScale;
+    }
+    if(snapshotPairFocus){const fit=fitPairCamera(snapshotPairFocus,vector,halfFov,distance,cameraTarget,snapshotFocusZoom,snapshotFitView);cameraTarget.copy(fit.target);distance=fit.distance;camera.zoom=viewZoom*fit.zoom;}
     camera.far=Math.max(100,distance+bound*5);
     const minimumCameraY=floor.position.y+.0125+.02;
     if(selectedView==='free-view')pitch=Math.max(pitch,Math.asin(Math.max(-.999,Math.min(.999,minimumCameraY/distance))));
@@ -524,13 +538,15 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       if(enablePan)camera.setViewOffset(w,h,THREE.MathUtils.lerp(cameraFlight.offsetX,-panX,t),THREE.MathUtils.lerp(cameraFlight.offsetY,-panY,t),w,h);
     }
     if(snapshotCamera){
-      const direction=vector(snapshotCamera.direction.map((v,i)=>v+center[i])).normalize();
-      const up=vector(snapshotCamera.up.map((v,i)=>v+center[i])).normalize();
-      camera.position.copy(cameraTarget).addScaledVector(direction,distance);camera.up.copy(up);
-      if(!bannerMode)camera.position.y=Math.max(minimumCameraY,camera.position.y);
-      camera.lookAt(cameraTarget);
+      const {direction}=snapshotFitView,up=snapshotFitView.manual.up;
+      const pivot=snapshotRotationPivot?vector(snapshotRotationPivot):cameraTarget;
+      const scriptedPosition=cameraTarget.clone().addScaledVector(direction,distance);
+      camera.position.copy(navigation.orbitPoint(scriptedPosition,pivot));camera.up.copy(up);
+      const lookTarget=navigation.orbitPoint(cameraTarget,pivot);
+      constrainOrbitAboveGround(camera.position,pivot,minimumCameraY);
+      camera.lookAt(lookTarget);
 
-    }else if(!bannerMode)constrainCameraAboveGround(camera,minimumCameraY);
+    }else constrainCameraAboveGround(camera,minimumCameraY);
     camera.updateProjectionMatrix();
     updateDistanceGuides();
     // An opaque ground surface does not change with the observer's viewpoint.
@@ -616,7 +632,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   }
   const clampZoom=value=>Math.max(.4,Math.min(4,value));
   if(snapshot){
-    mediaCleanup.push(mountViewInput(canvas,ratio=>{zoom=clampZoom(zoom*ratio);draw();},(dx,dy)=>{panX+=dx;panY+=dy;draw();}));
+    mediaCleanup.push(mountViewInput(canvas,ratio=>navigation.zoomBy(ratio),(dx,dy)=>navigation.pan(dx,dy),(dx,dy)=>navigation.rotate(dx,dy),()=>navigation.canRotate));
   }else{
   const pointers=new Map();
   const pinchDistance=()=>{const [a,b]=[...pointers.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
@@ -692,8 +708,8 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     dispose(){cancelAnimationFrame(flightHandle);mediaCleanup.forEach(cleanup=>cleanup());disposed=true;cancelAnimationFrame(animationHandle);resizeObserver.disconnect();renderer.dispose();const geometries=new Set(),materials=new Set();scene.traverse(object=>{if(object.geometry)geometries.add(object.geometry);if(object.material)materials.add(object.material);});geometries.forEach(g=>g.dispose());materials.forEach(m=>{m.map?.dispose();m.dispose();});},
   };
   if(snapshot){
-    const playback=mountSnapshotExplanation(card,{id,poseData,metrics:snapshotMetrics,entry,scene,toWorld:vector,setPoses:setSnapshotPoseOpacity,draw,canvas,
-      setCamera:value=>{snapshotCamera=value;},setPairFocus:value=>{snapshotPairFocus=value;},
+    const playback=mountSnapshotExplanation(card,{id,poseData,metrics:snapshotMetrics,entry,scene,toWorld:vector,setPoses:setSnapshotPoseOpacity,draw,canvas,navigation,
+      setRotationPivot:value=>{snapshotRotationPivot=value;},setCamera:value=>{snapshotCamera=value;},setPairFocus:value=>{snapshotPairFocus=value;},
       setFocus:(origin,amount)=>{snapshotFocus.copy(vector(origin)).multiplyScalar(amount);snapshotFocusZoom=1+2.4*amount;},
     });
     snapshotOverlayView=playback.updateView;draw();

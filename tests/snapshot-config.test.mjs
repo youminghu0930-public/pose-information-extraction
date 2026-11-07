@@ -29,3 +29,19 @@ test('reject malformed demo objects, invalid timing and duplicate keys',()=>{
  for(const source of ['{"kinematic":{},"kinematic":{}}','{"kinematic":{"torso_turn_bend_tilt":{},"torso_turn_bend_tilt":{}}}','{"kinematic":{"torso_turn_bend_tilt":{"video":"00","frame":1,"stay":2,"stay":3}}}'])assert.throws(()=>parseSnapshotEntries(source),/Duplicate/);
  assert.deepEqual(parseSnapshotEntries('{}'),[]);
 });
+
+test('shared metric settings apply to every configured pose selection',async()=>{
+ const {parseSnapshotConfiguration}=await import('../snapshot-config.js');
+ const settings={start_stay:5,explain:40,transition:1,review:15,end_stay:5};
+ const config={selections:[{video:'00',frame:300},{video:'12',frame:100}],metrics:{kinematic:{torso_turn_bend_tilt:settings},geometric:{spine_bend_tilt:settings}}};
+ const source=JSON.stringify(config),entries=parseSnapshotEntries(source),parsed=parseSnapshotConfiguration(source);
+ assert.equal(entries.length,4);assert.equal(parsed.entries.length,2);assert.deepEqual(parsed.selections,config.selections);
+ for(const [video,entry] of entries){assert.equal(entry.frame,video==='00'?300:100);for(const key of Object.keys(settings))assert.equal(entry[key],settings[key]);}
+ assert.deepEqual(resolveSnapshot(entries[0][1],metrics,400),{...entries[0][1],referenceFrame:0});
+ for(const key of ['start_stay','transition','review','end_stay']){
+  assert.doesNotThrow(()=>parseSnapshotEntries(JSON.stringify({...config,metrics:{kinematic:{torso_turn_bend_tilt:{...settings,[key]:0}}}})));
+  assert.throws(()=>parseSnapshotEntries(JSON.stringify({...config,metrics:{kinematic:{torso_turn_bend_tilt:{...settings,[key]:-1}}}})));
+ }
+ assert.throws(()=>parseSnapshotEntries(JSON.stringify({...config,selections:[]})));
+ assert.throws(()=>parseSnapshotEntries(JSON.stringify({...config,selections:[{video:'00',frame:-1}]})));
+});

@@ -532,3 +532,31 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
   .explain-step-caption { left:10px;right:10px;bottom:12px; }
   .explain-step-caption-text { font-size:12px;padding:7px 10px; }
 }
+
+/* Metric choice on the left; pose choice shares the same viewer on the right. */
+.snapshot-metric-workspace { grid-template-columns:230px minmax(0,1fr) 160px; }
+.snapshot-pose-selector { min-width:0;border-left:1px solid var(--viewer-border);background:var(--viewer-card); }
+.snapshot-pose-list { display:flex;flex-direction:column;gap:6px;padding:10px;max-height:630px;overflow:auto; }
+.snapshot-pose-selector .snapshot-navigator-title { padding:16px 12px; }
+@media(max-width:1100px){
+ .snapshot-metric-workspace { grid-template-columns:190px minmax(0,1fr) 135px; }
+}
+@media(max-width:760px){
+ .snapshot-metric-workspace { grid-template-columns:minmax(0,1fr); }
+ .snapshot-pose-selector { grid-row:2;border-left:0;border-bottom:1px solid var(--viewer-border); }
+ .snapshot-pose-list { flex-direction:row;max-height:none; }
+ .snapshot-pose-list .snapshot-metric-option { flex:1;min-width:120px; }
+ .snapshot-metric-player { grid-row:3; }
+}
+
+.explain-stage-timeline { grid-column:1;grid-row:2;min-width:0; }
+.explain-stage-tags { display:flex;flex-direction:row;gap:0;margin-top:3px; }
+.explain-stage-tag { flex-basis:0;min-width:32px;padding:5px 0;border:0;border-top:2px solid #c7d6c6;background:transparent;color:var(--muted);font:500 10px/1.4 system-ui;text-align:center;cursor:pointer; }
+.explain-stage-tag + .explain-stage-tag { border-left:1px solid var(--viewer-border); }
+.explain-stage-tag:hover { background:#e2ece1;color:var(--ink); }
+.explain-stage-tag[aria-current=step] { border-top-color:var(--accent);color:var(--accent);background:#e2ece1; }
+
+.explain-reset-view { position:absolute;top:10px;right:10px;z-index:9;display:grid;place-items:center;width:32px;height:32px;padding:6px;border:1px solid var(--viewer-border);border-radius:6px;background:rgb(244 247 240 / 85%);color:var(--accent);cursor:pointer; }
+.explain-reset-view:hover { background:#e2ece1; }
+.explain-reset-view:focus-visible { outline:2px solid var(--accent);outline-offset:2px; }
+.explain-reset-view svg { width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round; }

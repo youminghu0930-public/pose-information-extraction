@@ -1,3 +1,4 @@
+import {separateReviewTransition} from './review-transition.js';
 import {fadeReviewTarget} from './review-timing.js';
 import {openingSegments,sampleOpening} from './opening.js';
 import {createRotationReview} from './rotation-review.js';
@@ -21,13 +22,13 @@ export function createTorsoChoreography(model){
    {id:'camera-'+key,title:'View along '+({turn:'Y',bend:'X',tilt:'Z'}[key])+' axis',duration:1800,motionDuration:1300,cameraFor:key},
    {id:key,title:{turn:'Turn · Y axis',bend:'Forward bend · X axis',tilt:'Side tilt · Z axis'}[key],duration:3900,motionDuration:3400},
   ]),{id:'finish',title:'Aligned',duration:3000,completion:true},{id:'reset',title:'Reference + selected pose',duration:1200}];
- const total=scheduleSegments(segments,entry.duration,entry.stay);
+ const total=scheduleSegments(segments,entry);
  const rotation=createIntrinsicRotation(frames.reference,measurement,meta,values);
  const review=createRotationReview(frames.reference,rotation);
  const front=referenceOverview(frames.reference);
  const cameras=Object.fromEntries(['reference','torso'].map(key=>[key,createConstructionCamera(frames[key],front)]));
  function sampleState(time){
-  const t=clamp(time/total)*total,s=segments.find(segment=>t<segment.end)??segments.at(-1),elapsed=t-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
+  const t=clamp(time/total)*total,s=segments.find(segment=>t<segment.end)??segments.at(-1),elapsed=t-s.start,progress=clamp(elapsed/Math.max(1e-9,s.duration)),p=ease(clamp(elapsed/Math.max(1e-9,s.motionDuration??s.duration)));
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{turn:0,bend:0,tilt:0},active:null,focus:0,focusOrigin:measurement.origin,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null};
   function sampleConstruction(key){
    const result=sampleFrameConstruction(frames[key],s,p,key==='reference'?'reference':'selected');
@@ -80,5 +81,5 @@ export function createTorsoChoreography(model){
   if(state.segment==='reset')state.referencePose=0;
   state.camera=uprightCamera(state.camera,frames.reference.y);return state;
  }
- return {segments,duration:total,frames,values,sample};
+ return separateReviewTransition({segments,duration:total,frames,values,sample},entry);
 }

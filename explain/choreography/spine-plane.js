@@ -1,3 +1,4 @@
+import {separateReviewTransition} from './review-transition.js';
 import {fadeReviewTarget} from './review-timing.js';
 import {highlightRotationAxis} from './rotation-highlight.js';
 import {openingSegments,sampleOpening} from './opening.js';
@@ -51,7 +52,7 @@ export function createSpinePlaneChoreography(model){
   action('rotation-camera',1600),action('turn',3400),
   {id:'finish',title:'Review the lower-spine turn',duration:6000,completion:true},action('reset',1200)];
  for(const s of segments)if(s.hold)s.duration=s.motionDuration+s.hold;
- const duration=scheduleTimeline(segments,entry.duration,entry.stay);
+ const duration=scheduleTimeline(segments,entry);
  const idx=id=>segments.findIndex(s=>s.id===id),has=(s,id)=>idx(id)>=0&&segments.indexOf(s)>=idx(id);
  const arrow=(direction)=>({from:origin,to:add(origin,mul(direction,L))});
  function axes(direction,opacity=1){const a=completedAxes(frame,opacity);a.x=arrow(direction);a.y=null;a.z=null;return a;}
@@ -64,7 +65,7 @@ export function createSpinePlaneChoreography(model){
  }
  function sampleState(time){
   const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start;
-  const progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
+  const progress=clamp(elapsed/Math.max(1e-9,s.duration)),p=ease(clamp(elapsed/Math.max(1e-9,s.motionDuration??s.duration)));
   const state={segment:s.id,title:s.title,progress,referencePose:.5,selectedPose:1,referenceAxes:null,torsoAxes:null,values:{turn:0},active:null,focus:0,focusOrigin:origin,camera:cameraBetween(front,front,1),sectors:[],jointHighlights:[],pairFocus:null,plane:null};
   if(sampleOpening(state,s,p,values))return state;
   if(s.id==='reference-focus'){state.referencePose=.5-.22*p;state.selectedPose=1-p;return state;}
@@ -143,5 +144,5 @@ export function createSpinePlaneChoreography(model){
   return state;
  }
  function sample(time){const state=sampleState(time);fadeReviewTarget(state,segments,.4);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,reference.y);return state;}
- return {segments,duration,frames:{reference,torso},values,sample};
+ return separateReviewTransition({segments,duration,frames:{reference,torso},values,sample},entry);
 }
