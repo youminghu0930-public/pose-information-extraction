@@ -6,7 +6,7 @@ import {sampleConstruction as sampleFrameConstruction} from './construction-stat
 import {frameDefinitions,constructAxes,completedAxes,mix} from './axis-frame.js';
 import {createIntrinsicRotation} from './intrinsic-rotation.js';
 import {ease,clamp} from '../ui/timeline.js';
-import {cameraOrientation,cameraBetween,uprightCamera} from './camera.js';
+import {referenceOverview,cameraBetween,uprightCamera} from './camera.js';
 export function createTorsoChoreography(model){
  const {data,meta,entry}=model.context,frames=frameDefinitions(data,meta,entry.frame),values=Object.fromEntries(model.items.map(item=>[item.key,item.computed]));
  const measurement={...frames.torso,origin:model.context.source(model.context.midpoint('left_hip','right_hip'))};
@@ -23,7 +23,7 @@ export function createTorsoChoreography(model){
  const total=scheduleSegments(segments,entry.duration,entry.stay);
  const rotation=createIntrinsicRotation(frames.reference,measurement,meta,values);
  const review=createRotationReview(frames.reference,rotation);
- const front=cameraOrientation(frames.reference.z,frames.reference.y);
+ const front=referenceOverview(frames.reference);
  const cameras=Object.fromEntries(['reference','torso'].map(key=>[key,createConstructionCamera(frames[key],front)]));
  function sampleState(time){
   const t=clamp(time/total)*total,s=segments.find(segment=>t<segment.end)??segments.at(-1),elapsed=t-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
@@ -71,6 +71,13 @@ export function createTorsoChoreography(model){
   }
   return state;
  }
- function sample(time){const state=sampleState(time);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,frames.reference.y);return state;}
+ function sample(time){
+  const state=sampleState(time);
+  // A tilted target axis can be end-on even when the reference axis is clear.
+  // Keep its actual connected arrow instead of a detached depth marker.
+  for(const key of ['x','y','z'])if(state.torsoAxes?.[key])state.torsoAxes[key].keepVisible=true;
+  if(state.segment==='reset')state.referencePose=0;
+  state.camera=uprightCamera(state.camera,frames.reference.y);return state;
+ }
  return {segments,duration:total,frames,values,sample};
 }

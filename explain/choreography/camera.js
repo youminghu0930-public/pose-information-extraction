@@ -4,6 +4,12 @@ export function cameraOrientation(direction,up){
  const z=unit(direction),x=unit(cross(up,z)),y=unit(cross(z,x));
  return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(new Vector3(...x),new Vector3(...y),new Vector3(...z)));
 }
+
+// Shared overview keeps the forward axis clear of the camera's optical axis.
+export function referenceOverview(frame){
+ const direction=new Vector3(...frame.z).addScaledVector(new Vector3(...frame.x),.65);
+ return cameraOrientation(direction.toArray(),frame.y);
+}
 export function cameraBetween(from,to,t){
  const q=from.clone().slerp(to,t);
  return {direction:new Vector3(0,0,1).applyQuaternion(q).toArray(),up:new Vector3(0,1,0).applyQuaternion(q).toArray()};
@@ -11,6 +17,18 @@ export function cameraBetween(from,to,t){
 
 // Preserve global vertical even while the scripted view direction changes.
 export function uprightCamera(camera,globalUp){return {...camera,up:[...globalUp]};}
+
+// Retain enough normal-facing view to see a plane's area, rather than an edge.
+// The supplied normal selects the visible side; camera up stays unchanged.
+export function cameraWithVisiblePlane(camera,normal,minFacing=.4){
+ const n=new Vector3(...normal).normalize(),d=new Vector3(...camera.direction).normalize(),facing=d.dot(n);
+ if(facing>=minFacing)return camera;
+ const tangent=d.clone().addScaledVector(n,-facing);
+ if(tangent.lengthSq()<1e-12)tangent.crossVectors(n,new Vector3(...camera.up));
+ if(tangent.lengthSq()<1e-12)tangent.crossVectors(n,new Vector3(1,0,0));
+ tangent.normalize().multiplyScalar(Math.sqrt(1-minFacing*minFacing)).addScaledVector(n,minFacing);
+ return {...camera,direction:tangent.toArray()};
+}
 
 // Interpolate heading and elevation rather than a rolled quaternion path.
 export function uprightCameraBetween(from,to,t,globalUp,forward){

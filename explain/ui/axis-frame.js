@@ -1,5 +1,5 @@
 import {projectArrow,createEndOnMarker} from './arrow-projection.js';
-import {arrowShape} from './arrow-shape.js';
+import {arrowShape,roundedBarShape,joinedTStemShape,crossbarContactWidth} from './arrow-shape.js';
 import {createRotationSector} from './rotation-sector.js';
 import * as THREE from '../../vendor/three/three.module.js';
 import {axisColors,angleColor} from '../palette.js';
@@ -20,7 +20,7 @@ export function createAxisFrameRenderer(scene,toWorld,width,canvas,colorAxes={})
  function update(next){
   state=next;
   for(const [key,{line,marker,label}] of Object.entries(arrows)){
-   const color=axisColors[state?.[key]?.colorAxis??colorAxes[key]??key];
+   const color=state?.[key]?.color??axisColors[state?.[key]?.colorAxis??colorAxes[key]??key];
    line.setAttribute('fill',color);label.setAttribute('fill',color);marker.setColor(color);
   }
   componentAngle.update(state?.angleMarker);projectionAngle.update(state?.projectionSweep);plane.visible=!!state&&state.plane>0&&state.planeOpacity>0;
@@ -39,12 +39,23 @@ export function createAxisFrameRenderer(scene,toWorld,width,canvas,colorAxes={})
    const projection=projectArrow(toWorld(spec.from),toWorld(spec.to),camera,w,h);
    if(!projection){group.style.display='none';continue;}
    const {x,y,tx,ty,arrowOpacity,markerOpacity}=projection;
-   const shape=arrowShape(x,y,tx,ty,width);
-   line.setAttribute('stroke-width','1.2');if(shape)line.setAttribute('d',shape);
-   line.style.display=shape?'':'none';
-   line.style.opacity=arrowOpacity;
-   marker.update(projection,width>=4?15:10);
-   label.style.display=markerOpacity>0?'':'none';label.setAttribute('x',tx+20);label.setAttribute('y',ty-15);
+   const blend=spec.shape==='bar'?1:spec.shapeBlend??0,bar=blend===1;
+   let joinedShape;
+   const crossSpec=spec.stopAt&&state[spec.stopAt];
+   if(bar&&crossSpec){
+    const cross=projectArrow(toWorld(crossSpec.from),toWorld(crossSpec.to),camera,w,h);
+    if(cross){
+     const start={x:cross.x,y:cross.y},end={x:cross.tx,y:cross.ty};
+     const crossWidth=crossbarContactWidth(start,end,{x:tx,y:ty},width,crossSpec.shape==='bar'?1:crossSpec.shapeBlend??0);
+     if(crossWidth!==null)joinedShape=joinedTStemShape({x,y},{x:tx,y:ty},start,end,width,crossWidth);
+    }
+   }
+   const shape=joinedShape!==undefined?joinedShape:(blend===1?roundedBarShape(x,y,tx,ty,width):arrowShape(x,y,tx,ty,width,blend)),color=spec.color??axisColors[spec.colorAxis??colorAxes[key]??key];
+   line.setAttribute('fill',color);line.setAttribute('stroke','none');
+   if(shape)line.setAttribute('d',shape);
+   line.style.display=shape?'':'none';line.style.opacity=bar||spec.keepVisible?1:arrowOpacity;
+   marker.update(bar||spec.keepVisible?null:projection,width>=4?15:10);
+   label.style.display=markerOpacity>0&&!bar&&!spec.keepVisible?'':'none';label.setAttribute('x',tx+20);label.setAttribute('y',ty-15);
   }
  }
  return {update,updateView,dispose(){componentAngle.dispose();projectionAngle.dispose();svg.remove();geometry.dispose();plane.material.dispose();scene.remove(plane);}};

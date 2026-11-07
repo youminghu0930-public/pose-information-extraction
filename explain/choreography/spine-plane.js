@@ -6,7 +6,7 @@ import {frameDefinitions,completedAxes,mix} from './axis-frame.js';
 import {createReferencePrelude} from './reference-prelude.js';
 import {projectionMotion,projectionView,planeProjectionAngle,projectionSweep} from './vector-projection.js';
 import {jointPairArrow,jointPairEmphasis,pairFocusStage,pairReleaseStage} from './joint-pair.js';
-import {cameraOrientation,cameraBetween,uprightCamera,uprightCameraBetween} from './camera.js';
+import {referenceOverview,cameraOrientation,cameraBetween,uprightCamera,uprightCameraBetween} from './camera.js';
 import {scheduleTimeline} from '../timing.js';
 import {ease,clamp} from '../ui/timeline.js';
 
@@ -24,7 +24,7 @@ export function createSpinePlaneChoreography(model){
  const L=Math.max(Math.hypot(...sub(pairs.lateral.to,pairs.lateral.from))*.65,Math.hypot(...sub(pairs.up.to,origin)));
  const frame={origin,x,y:n,z,length:L},torso={...frame,x:target,z:unit(cross(target,n))};
  const values={turn:model.items[0].computed};
- const front=cameraOrientation(reference.z,reference.y),oblique=cameraOrientation(add(add(z,mul(x,.5)),mul(n,.65)),reference.y),face=cameraOrientation(n,reference.y);
+ const front=referenceOverview(reference),oblique=cameraOrientation(add(add(z,mul(x,.5)),mul(n,.65)),reference.y),face=cameraOrientation(n,reference.y);
  const preferred=add(add(z,mul(x,.5)),mul(n,.65));
  const baselineView=projectionView(base,n,reference.y,preferred),lateralView=projectionView(raw,n,reference.y,preferred);
  const uprightBetween=(a,b,p)=>uprightCameraBetween(a,b,p,reference.y,reference.z);

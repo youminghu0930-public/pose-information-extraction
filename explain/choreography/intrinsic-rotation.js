@@ -1,6 +1,6 @@
 import {axes,rotate,add,mul} from '../math.js';
 import {completedAxes} from './axis-frame.js';
-import {cameraOrientation,uprightCameraBetween} from './camera.js';
+import {referenceOverview,cameraOrientation,uprightCameraBetween} from './camera.js';
 // Y–X–Z intrinsic rotation, independent of joints and metric selection.
 export function createIntrinsicRotation(reference,target,meta,values){
  const mapDirection=v=>meta.orientation.map(row=>row.reduce((sum,n,i)=>sum+n*v[i],0));
@@ -10,10 +10,12 @@ export function createIntrinsicRotation(reference,target,meta,values){
   return {...reference,origin:target.origin,length:target.length,x:mapDirection(x),y:mapDirection(y),z:mapDirection(z),rawX:mapDirection(x)};
  }
  const before={turn:rotatedFrame(0,0,0),bend:rotatedFrame(values.turn,0,0),tilt:rotatedFrame(values.turn,values.bend,0)};
- // Six degrees off the vertical pole keeps a stable global-up heading.
- const turnView=add(mul(before.turn.y,Math.cos(Math.PI/30)),mul(before.bend.x,Math.sin(Math.PI/30)));
+ // Stay beyond the end-on marker threshold, so Y reads as a connected arrow
+ // while retaining an elevated view of both turn wedges and no camera roll.
+ const turnViewAngle=25*Math.PI/180;
+ const turnView=add(mul(before.turn.y,Math.cos(turnViewAngle)),mul(before.bend.x,Math.sin(turnViewAngle)));
  const between=(a,b,t)=>uprightCameraBetween(a,b,t,reference.y,reference.z);
- const views={front:cameraOrientation(reference.z,reference.y),turn:cameraOrientation(turnView,reference.y),bend:cameraOrientation(before.bend.x,reference.y),tilt:cameraOrientation(before.tilt.z,reference.y)};
+ const views={front:referenceOverview(reference),turn:cameraOrientation(turnView,reference.y),bend:cameraOrientation(before.bend.x,reference.y),tilt:cameraOrientation(before.tilt.z,reference.y)};
  function rotationSectors(key,angle){
   const axis={turn:'y',bend:'x',tilt:'z'}[key];
   return ['x','y','z'].filter(direction=>direction!==axis).map(direction=>({

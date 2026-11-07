@@ -26,6 +26,12 @@
       "duration": 30,
       "stay": 5
     },
+    "spine_azimuth_polar_spin": {
+      "video": "00",
+      "frame": 300,
+      "duration": 40,
+      "stay": 10
+    },
     "shoulder_turn_tilt": {
       "video": "00",
       "frame": 300,

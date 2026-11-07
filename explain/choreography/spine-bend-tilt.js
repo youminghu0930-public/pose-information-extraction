@@ -6,7 +6,7 @@ import {createPlaneInclination} from './plane-inclination.js';
 import {jointPairArrow,jointPairEmphasis} from './joint-pair.js';
 import {avoidEndOn} from './pair-camera.js';
 import {projectionView} from './vector-projection.js';
-import {cameraOrientation,cameraBetween,uprightCameraBetween,uprightCamera,viewFromLeanSide} from './camera.js';
+import {referenceOverview,cameraOrientation,cameraBetween,uprightCameraBetween,uprightCamera,viewFromLeanSide} from './camera.js';
 import {scheduleTimeline} from '../timing.js';
 import {reviewTiming} from './review-timing.js';
 import {ease,clamp} from '../ui/timeline.js';
@@ -17,7 +17,7 @@ export function createSpineBendTiltChoreography(model){
  const origin=pair.from,raw=unit(sub(pair.to,pair.from)),L=Math.hypot(...sub(pair.to,pair.from)),up=reference.y;
  const frame={...reference,origin,length:L},torso={...frame,y:raw};
  const values=Object.fromEntries(model.items.map(item=>[item.key,item.computed]));
- const front=cameraOrientation(reference.z,up),preferred=add(add(reference.z,mul(reference.x,.55)),mul(up,.35));
+ const front=referenceOverview(reference),preferred=add(add(reference.z,mul(reference.x,.55)),mul(up,.35));
  const overview=cameraOrientation(preferred,up),stretch=avoidEndOn(overview,pair,up,{maxAlignment:.7,targetAlignment:.6});
  const between=(a,b,p)=>uprightCameraBetween(a,b,p,up,reference.z),prelude=createReferencePrelude(reference,front);
  const definitions={bend:{normal:reference.z,axis:'z',u:reference.x,v:up},tilt:{normal:reference.x,axis:'x',u:up,v:reference.z}};
@@ -53,7 +53,7 @@ export function createSpineBendTiltChoreography(model){
   state.pairFocus={points:fitPoints,amount:s.id==='measurement-camera'?p:1};state.camera=between(front,stretch,s.id==='measurement-camera'?p:1);
   if(s.id==='measurement-camera')return state;
   if(has(s,'bend-plane'))state.plane=plane('bend',s.id==='bend-plane'?p:1);
-  if(s.id==='reference-trim'){state.referenceAxes.x.opacity=1-p;state.referenceAxes.y.opacity=1-p;state.referenceAxes.z.opacity=1-p;}
+  if(s.id==='reference-trim')state.referenceAxes=completedAxes({...frame,length:L*(1-.6*p)},1-.7*p);
   if(has(s,'spine-focus')){state.referenceAxes.x=null;state.referenceAxes.y=null;state.referenceAxes.z=null;}
   if(s.pairPhase){state.torsoAxes=axes(raw,.65);state.torsoAxes.x=jointPairArrow(pair,arrow(raw),s.pairPhase,p);state.jointHighlights=[{pose:'selected',joints:pair.joints,strength:jointPairEmphasis(s.pairPhase,p)}];return state;}
   if(!has(s,'bend-camera'))return state;
@@ -88,6 +88,15 @@ export function createSpineBendTiltChoreography(model){
   }
   return state;
  }
- function sample(time){const state=sampleState(time);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,up);return state;}
- return {segments,duration,frames:{reference,torso},values,targetAxisColors:{x:'y'},valueAxes:{bend:'z',tilt:'x'},sample};
+ function sample(time){
+  const state=sampleState(time);
+  // Retain a compact global reference independently of the measuring arrow.
+  if(index(state.segment)>=index('spine-focus')){
+   const remaining=state.segment==='reset'?1-ease(clamp((time-segments.at(-1).start)/(segments.at(-1).motionDuration??segments.at(-1).duration))):1;
+   state.originalReferenceAxes=completedAxes({...frame,length:L*.4},.3*remaining);
+  }
+  if(state.segment==='reset')state.referencePose=0;
+  state.camera=uprightCamera(state.camera,up);return state;
+ }
+ return {segments,duration,frames:{reference,torso},values,targetAxisColors:{x:'y'},sample};
 }

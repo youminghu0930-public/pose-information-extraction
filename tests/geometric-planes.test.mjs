@@ -88,3 +88,16 @@ test('spine inclination views sit on the same side as the measured lean',()=>{
   }
  }
 });
+
+test('spine bend and tilt retains a smaller translucent global reference throughout measurement',()=>{
+ const {plan}=setup('00.json',300,'spine_bend_tilt');
+ const start=at(plan,'reference-trim',0).referenceAxes,middle=at(plan,'reference-trim',.5).referenceAxes,end=at(plan,'reference-trim',1).referenceAxes;
+ close([end.frame.length],[start.frame.length*.4]);close([end.opacity],[.3]);
+ assert.ok(middle.frame.length<start.frame.length&&middle.frame.length>end.frame.length);
+ assert.ok(middle.opacity<1&&middle.opacity>.3);
+ for(const id of ['spine-focus','spine-grow','bend-camera','bend','plane-switch','tilt-plane','tilt','finish']){
+  const axes=at(plan,id,.5).originalReferenceAxes;
+  close(axes.frame.origin,end.frame.origin);close([axes.frame.length],[end.frame.length]);close([axes.opacity],[.3]);
+  for(const axis of ['x','y','z']){assert.ok(axes[axis]);close(axes[axis].to,end[axis].to);}
+ }
+});

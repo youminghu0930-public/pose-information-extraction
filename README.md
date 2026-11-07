@@ -194,3 +194,9 @@ Every metric starts with only the current pose and its final values, holds brief
 ### Ground and translucent shadows
 
 The ground remains opaque and receives shadows independently of the camera viewpoint. Scripted snapshot cameras stay above its surface. `pose-shadow.js` preserves the template’s continuous PCF shadow silhouette and fades overall light shadow strength with pose visibility. It uses no alpha-hashed depth material or random pixel rejection, avoiding speckled shadows.
+
+### Spine orientation as a rigid T
+
+`geometric.spine_azimuth_polar_spin` shows the hip-to-shoulder spine as a cyan stem and the shoulder direction across it as a violet crossbar. After reference construction, all three axes move together: left and up form a T rooted at the hip midpoint, and forward starts at that same root. They stay visible while the body T is constructed. The actual joint pairs are emphasized and stretched first; arrows smoothly become bars, and the shoulder direction is projected perpendicular to the spine. Once the top-down camera settles, a horizontal plane grows at the root. All three reference directions rotate together for azimuth, then forward fades before polar inclination and spine-axis spin. The reference stem remains visible from above. T lengths and right angles remain fixed during rotation. Magenta pies accompany the measurements, with two wedges for the opposite halves of the twisting crossbar. The faint skeleton supplies context throughout.
+
+`t-orientation.js` samples the same Ry(azimuth) Rx(polar) baseline and signed spine-axis spin as the computation. `spine-t.js` composes the shared result-first opening, reference prelude, source-pair presentation, projection, upright cameras, completion hold and review. The coordinate renderer supports flat bars as well as arrows, so T presentation remains modular. The demo is configured for video 00, frame 300, duration 40 seconds and stay 10 seconds.

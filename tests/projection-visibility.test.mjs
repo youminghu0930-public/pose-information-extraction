@@ -16,7 +16,10 @@ test('hidden up arrows never return in any projection metric, including review a
   const trim=plan.segments.find(s=>s.id==='reference-trim');
   for(let time=trim.end;time<=plan.duration;time+=31){
    const state=plan.sample(time);
-   for(const key of ['referenceAxes','torsoAxes','originalReferenceAxes','originalTorsoAxes'])assert.equal(state[key]?.y??null,null,`${subtype} ${state.segment} ${key}`);
+   for(const key of ['referenceAxes','torsoAxes','originalReferenceAxes','originalTorsoAxes']){
+    if(subtype==='spine_bend_tilt'&&key==='originalReferenceAxes'){assert.ok(state[key]?.y);assert.ok(state[key].opacity<=.3);continue;}
+    assert.equal(state[key]?.y??null,null,`${subtype} ${state.segment} ${key}`);
+   }
   }
   for(const segment of plan.segments.filter(s=>['projection','baseline-project','lateral-project','bend-project','tilt-project'].includes(s.id))){
    const state=plan.sample(segment.start+segment.motionDuration*.7),axes=segment.id==='baseline-project'?state.referenceAxes:state.torsoAxes;

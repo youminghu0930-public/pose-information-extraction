@@ -1,3 +1,4 @@
+import {mountSpineTPlayer} from './spine-t-player.js';
 import {mountSpineBendTiltPlayer} from './spine-bend-tilt-player.js';
 import {mountLateralTurnTiltPlayer} from './lateral-turn-tilt-player.js';
 import {subtypeDescriptions} from '../names.js';
@@ -14,6 +15,7 @@ import {make} from './dom.js';
 
 // Presentation dispatch belongs to the explanation library, not the pose viewer.
 const players=new Map([
+ ['geometric.spine_azimuth_polar_spin',mountSpineTPlayer],
  ['geometric.shoulder_turn_tilt',mountLateralTurnTiltPlayer],
  ['geometric.hip_turn_tilt',mountLateralTurnTiltPlayer],
  ['geometric.spine_bend_tilt',mountSpineBendTiltPlayer],

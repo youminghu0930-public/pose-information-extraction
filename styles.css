@@ -509,3 +509,11 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
 /* Transient play/pause feedback follows the recorded video-player interaction. */
 .explain-playback-feedback { position:absolute;left:50%;top:50%;z-index:7;display:grid;place-items:center;width:60px;height:60px;border-radius:50%;background:rgb(0 0 0 / 58%);opacity:0;transform:translate(-50%,-50%);pointer-events:none; }
 .explain-playback-feedback svg { width:32px;height:32px;fill:#fff; }
+
+/* Scrubbing should never select the control or surrounding text. */
+.frame-slider, .explain-time-slider {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.frame-slider:focus:not(:focus-visible), .explain-time-slider:focus:not(:focus-visible) { outline: none; }

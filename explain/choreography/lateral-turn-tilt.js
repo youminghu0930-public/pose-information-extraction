@@ -1,3 +1,4 @@
+import {blendAxisColors} from '../palette.js';
 import {openingSegments,sampleOpening} from './opening.js';
 import {add,sub,mul,unit,cross} from '../math.js';
 import {frameDefinitions,completedAxes,mix} from './axis-frame.js';
@@ -6,7 +7,7 @@ import {createDirectionRotation} from './direction-rotation.js';
 import {jointPairArrow,jointPairEmphasis} from './joint-pair.js';
 import {avoidEndOn} from './pair-camera.js';
 import {projectionMotion,projectionView,planeProjectionAngle,projectionSweep} from './vector-projection.js';
-import {cameraOrientation,cameraBetween,uprightCameraBetween,uprightCamera} from './camera.js';
+import {referenceOverview,cameraOrientation,cameraBetween,uprightCameraBetween,uprightCamera} from './camera.js';
 import {scheduleTimeline} from '../timing.js';
 import {reviewTiming} from './review-timing.js';
 import {ease,clamp} from '../ui/timeline.js';
@@ -19,7 +20,7 @@ export function createLateralTurnTiltChoreography(model){
  const values=Object.fromEntries(model.items.map(item=>[item.key,item.computed]));
  const rotation=createDirectionRotation(reference,raw,values),{base,up,horizontal}=rotation;
  const frame={...reference,origin,length:L},torso={...frame,x:raw,y:up,z:unit(cross(raw,up))};
- const front=cameraOrientation(reference.z,up),oblique=cameraOrientation(add(add(reference.z,mul(base,.55)),mul(up,.45)),up);
+ const front=referenceOverview(reference),oblique=cameraOrientation(add(add(reference.z,mul(base,.55)),mul(up,.45)),up);
  const stretch=avoidEndOn(oblique,pair,up,{maxAlignment:.5,targetAlignment:.4});
  const side=projectionView(raw,up,up,add(reference.z,mul(base,.5)));
  const top=cameraOrientation(add(mul(up,Math.cos(Math.PI/30)),mul(reference.z,Math.sin(Math.PI/30))),up);
@@ -36,8 +37,12 @@ export function createLateralTurnTiltChoreography(model){
  function axes(d,opacity=1){const axes=completedAxes(frame,opacity);axes.x=arrow(d);axes.y=null;axes.z=null;return axes;}
  function referenceAxes(d){return axes(d);}
  const points=[pair.from,pair.to,...[-1,1].flatMap(a=>[-1,1].map(b=>add(origin,add(mul(base,L*a),mul(reference.z,L*b))))),add(origin,mul(raw,L))];
+ function tiltColor(state,p){
+  const color=blendAxisColors('x','y',p);state.referenceAxes.x.color=color;state.valueColors={tilt:color};
+ }
  function rotateState(state,key,p){
   const result=rotation.sample(key,p);state.referenceAxes=referenceAxes(result.direction);state.torsoAxes=axes(key==='turn'?horizontal:raw,.42);
+  if(key==='tilt')tiltColor(state,1);
   state.values=result.values;state.active=key;state.sectors=[{...result.sector,origin,radius:L*.8}];
  }
  function sampleState(time){
@@ -80,7 +85,7 @@ export function createLateralTurnTiltChoreography(model){
   if(s.id==='turn'){rotateState(state,'turn',p);state.camera=between(top,top,1);return state;}
   if(s.id==='tilt-camera'||s.id==='tilt-ready'){
    rotateState(state,'tilt',0);state.sectors=[];
-   const amount=s.id==='tilt-camera'?p:1;state.torsoAxes.opacity=.42*amount;state.camera=between(top,side,amount);return state;
+   const amount=s.id==='tilt-camera'?p:1;tiltColor(state,amount);state.torsoAxes.opacity=.42*amount;state.camera=between(top,side,amount);return state;
   }
   if(s.id==='tilt'){rotateState(state,'tilt',p);state.camera=between(side,side,1);return state;}
   if(s.id==='finish'){
@@ -92,7 +97,7 @@ export function createLateralTurnTiltChoreography(model){
     state.pairFocus=null;state.focus=.32;state.camera=between(oblique,oblique,1);
     if(q<.38){rotateState(state,'turn',0);state.referenceAxes.opacity=ease((q-.22)/.16);state.sectors=[];}
     else if(q<.64)rotateState(state,'turn',ease(clamp((q-.44)/.2)));
-    else rotateState(state,'tilt',ease(clamp((q-.71)/.2)));
+    else {rotateState(state,'tilt',ease(clamp((q-.71)/.2)));tiltColor(state,ease(clamp((q-.64)/.07)));}
    }
    const t=ease(clamp(q/.22));state.selectedPose=.28+.02*t;state.plane.opacity=1-.4*t;return state;
   }
@@ -103,5 +108,5 @@ export function createLateralTurnTiltChoreography(model){
   return state;
  }
  function sample(time){const state=sampleState(time);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,up);return state;}
- return {segments,duration,frames:{reference,torso},values,valueAxes:{turn:'y',tilt:'z'},sample};
+ return {segments,duration,frames:{reference,torso},values,sample};
 }

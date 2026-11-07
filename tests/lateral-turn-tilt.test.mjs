@@ -1,3 +1,5 @@
+import {axisColors} from '../explain/palette.js';
+import {measurementColor} from '../explain/measurement-colors.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -66,4 +68,21 @@ test('reference up is hidden once the plane is established',()=>{
  for(const id of ['lateral-grow','projection','turn','tilt']){
   const state=sample(plan,id,.5);assert.equal(state.referenceAxes.y,null);assert.equal(state.torsoAxes?.y??null,null);
  }
+});
+
+test('hip and shoulder reference and number transition to the plane color after turn',()=>{
+ const data=read('3d_results/00.json'),metrics=read('metrics/00.json');
+ for(const subtype of ['shoulder_turn_tilt','hip_turn_tilt']){
+  const plan=createLateralTurnTiltChoreography(explainSnapshot(data,metrics,{frame:300,type:'geometric',subtype,duration:30,stay:5}));
+  const start=sample(plan,'tilt-camera',0),middle=sample(plan,'tilt-camera',.5),end=sample(plan,'tilt-camera',1);
+  assert.equal(start.referenceAxes.x.color,axisColors.x);assert.equal(end.referenceAxes.x.color,axisColors.y);
+  assert.notEqual(middle.referenceAxes.x.color,axisColors.x);assert.notEqual(middle.referenceAxes.x.color,axisColors.y);
+  for(const state of [start,middle,end])assert.equal(state.valueColors.tilt,state.referenceAxes.x.color);
+  assert.equal(sample(plan,'tilt',.5).referenceAxes.x.color,axisColors.y);
+  assert.equal(measurementColor(subtype,'tilt'),axisColors.y);
+  assert.equal(measurementColor(subtype,'turn'),axisColors.x);
+ }
+ assert.equal(measurementColor('spine_bend_tilt','bend'),axisColors.z);
+ assert.equal(measurementColor('spine_bend_tilt','tilt'),axisColors.x);
+ assert.equal(measurementColor('torso_turn_bend_tilt','turn'),axisColors.y);
 });
