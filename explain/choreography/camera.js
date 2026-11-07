@@ -10,6 +10,13 @@ export function referenceOverview(frame){
  const direction=new Vector3(...frame.z).addScaledVector(new Vector3(...frame.x),.65);
  return cameraOrientation(direction.toArray(),frame.y);
 }
+
+// Eight stable corners let successive close-ups interpolate without changing
+// the focus point count or jumping when a new stage starts.
+export function cameraFocusBounds(points){
+ const low=[0,1,2].map(i=>Math.min(...points.map(p=>p[i]))),high=[0,1,2].map(i=>Math.max(...points.map(p=>p[i])));
+ return [0,1].flatMap(x=>[0,1].flatMap(y=>[0,1].map(z=>[x?high[0]:low[0],y?high[1]:low[1],z?high[2]:low[2]])));
+}
 export function cameraBetween(from,to,t){
  const q=from.clone().slerp(to,t);
  return {direction:new Vector3(0,0,1).applyQuaternion(q).toArray(),up:new Vector3(0,1,0).applyQuaternion(q).toArray()};

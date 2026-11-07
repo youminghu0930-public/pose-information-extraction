@@ -1,3 +1,5 @@
+import {fadeReviewTarget} from './review-timing.js';
+import {highlightRotationAxis} from './rotation-highlight.js';
 import {openingSegments,sampleOpening} from './opening.js';
 import {add,sub,mul,unit} from '../math.js';
 import {frameDefinitions,completedAxes,mix} from './axis-frame.js';
@@ -8,7 +10,7 @@ import {avoidEndOn} from './pair-camera.js';
 import {projectionMotion,projectionView,planeProjectionAngle,projectionSweep} from './vector-projection.js';
 import {referenceOverview,cameraOrientation,cameraBetween,uprightCameraBetween,uprightCamera,constrainViewElevation,cameraWithVisiblePlane} from './camera.js';
 import {scheduleTimeline} from '../timing.js';
-import {reviewTiming} from './review-timing.js';
+import {reviewTiming,referenceResetOpacity} from './review-timing.js';
 import {ease,clamp} from '../ui/timeline.js';
 
 // One T-shaped object, with the root as pivot, the spine as stem, and shoulders
@@ -54,7 +56,7 @@ export function createSpineTChoreography(model){
  function measured(state,key,p){
   const result=rotation.sample(key,p);state.referenceAxes=key==='azimuth'?referenceT(result.frame):tShape(result.frame);state.referenceAxes.y.keepVisible=true;state.torsoAxes=targetT(.42);state.values=result.values;state.active=key;
   state.plane=plane(key);
-  state.sectors=rotation.sectors(key,values[key]*p).map(sector=>({...sector,origin:key==='spin'?pairs.spine.to:origin,radius:key==='spin'?halfWidth*.9:stemLength*.65}));
+  state.sectors=rotation.sectors(key,values[key]*p).map(sector=>({...sector,origin:key==='spin'?pairs.spine.to:origin,radius:key==='spin'?halfWidth*.9:stemLength*.65}));highlightRotationAxis(state,p);
  }
  function sampleState(time){
   const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
@@ -124,7 +126,7 @@ export function createSpineTChoreography(model){
    if(q<.22){const t=ease(q/.22);state.referenceAxes.opacity=1-t;state.values={azimuth:0,polar:0,spin:0};state.sectors=[];state.camera=between(spinView,overview,t);state.pairFocus={points:fitPoints,amount:1-t};state.focus=.28*t;}
    else{
     state.pairFocus=null;state.focus=.28;state.camera=between(overview,overview,1);
-    if(q<.34){measured(state,'azimuth',0);state.referenceAxes.opacity=ease((q-.22)/.12);state.sectors=[];}
+    if(q<.34){measured(state,'azimuth',0);state.referenceAxes.opacity=referenceResetOpacity(q,s.duration,.34);state.sectors=[];}
     else{const position=(q-.34)/.57*3,i=Math.min(2,Math.floor(position)),amount=ease(clamp((position-i-.22)/.78));measured(state,order[i],amount);if(i===1&&position-i<.22){state.referenceAxes.z={from:origin,to:add(origin,mul(rotation.sample('azimuth',1).frame.z,stemLength*.5)),opacity:.4*(1-ease((position-i)/.22))};}}
    }
    state.selectedPose=.28+.02*ease(clamp(q/.22));return state;
@@ -135,7 +137,7 @@ export function createSpineTChoreography(model){
   return state;
  }
  function sample(time){
-  const state=sampleState(time),i=index(state.segment);
+  const state=sampleState(time),i=index(state.segment);fadeReviewTarget(state,segments,.34);
   if(i>=index('crossbar-plane')&&i<=index('azimuth-camera')){
    const visible=cameraWithVisiblePlane(state.camera,raw);
    const amount=state.segment==='crossbar-plane'?ease(clamp((time-segments[i].start)/segments[i].motionDuration)):1;

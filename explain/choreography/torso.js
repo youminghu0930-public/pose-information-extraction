@@ -1,3 +1,4 @@
+import {fadeReviewTarget} from './review-timing.js';
 import {openingSegments,sampleOpening} from './opening.js';
 import {createRotationReview} from './rotation-review.js';
 import {createConstructionCamera} from './construction-camera.js';
@@ -72,7 +73,7 @@ export function createTorsoChoreography(model){
   return state;
  }
  function sample(time){
-  const state=sampleState(time);
+  const state=sampleState(time);fadeReviewTarget(state,segments,.34);
   // A tilted target axis can be end-on even when the reference axis is clear.
   // Keep its actual connected arrow instead of a detached depth marker.
   for(const key of ['x','y','z'])if(state.torsoAxes?.[key])state.torsoAxes[key].keepVisible=true;

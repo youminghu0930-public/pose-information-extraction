@@ -1,4 +1,4 @@
-import {reviewTiming} from './review-timing.js';
+import {reviewTiming,referenceResetOpacity} from './review-timing.js';
 import {cameraOrientation,cameraBetween,uprightCameraBetween} from './camera.js';
 import {ease,clamp} from '../ui/timeline.js';
 // One continuous global view: reveal the pose, fade-reset the axes, replay Y–X–Z.
@@ -17,7 +17,7 @@ export function createRotationReview(reference,rotation){
    state.sectors=[];return state;
   }
   if(p<.34){
-   rotation.setAngles(state,0);state.referenceAxes.opacity=ease((p-.22)/.12);state.sectors=[];
+   rotation.setAngles(state,0);state.referenceAxes.opacity=referenceResetOpacity(p,duration,.34);state.sectors=[];
   }else if(p<.88){
    const step=(p-.34)/.54*3,index=Math.min(2,Math.floor(step));
    // Reserve the first quarter of each rotation slot for a quiet pause.

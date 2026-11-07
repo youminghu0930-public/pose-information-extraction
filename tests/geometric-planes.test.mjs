@@ -92,12 +92,24 @@ test('spine inclination views sit on the same side as the measured lean',()=>{
 test('spine bend and tilt retains a smaller translucent global reference throughout measurement',()=>{
  const {plan}=setup('00.json',300,'spine_bend_tilt');
  const start=at(plan,'reference-trim',0).referenceAxes,middle=at(plan,'reference-trim',.5).referenceAxes,end=at(plan,'reference-trim',1).referenceAxes;
- close([end.frame.length],[start.frame.length*.4]);close([end.opacity],[.3]);
- assert.ok(middle.frame.length<start.frame.length&&middle.frame.length>end.frame.length);
+ close([end.frame.length],[Math.min(plan.frames.reference.length,plan.frames.torso.length*.4)]);close([end.opacity],[.3]);
+ close([middle.frame.length],[start.frame.length]);close([end.frame.length],[start.frame.length]);
  assert.ok(middle.opacity<1&&middle.opacity>.3);
  for(const id of ['spine-focus','spine-grow','bend-camera','bend','plane-switch','tilt-plane','tilt','finish']){
   const axes=at(plan,id,.5).originalReferenceAxes;
   close(axes.frame.origin,end.frame.origin);close([axes.frame.length],[end.frame.length]);close([axes.opacity],[.3]);
   for(const axis of ['x','y','z']){assert.ok(axes[axis]);close(axes[axis].to,end[axis].to);}
  }
+});
+
+test('spine reference shrinks once, then turns translucent before the yellow plane expands',()=>{
+ const {plan}=setup('00.json',300,'spine_bend_tilt'),ids=plan.segments.map(s=>s.id);
+ assert.ok(ids.indexOf('reference-align')<ids.indexOf('reference-trim'));assert.ok(ids.indexOf('reference-trim')<ids.indexOf('bend-plane'));
+ let previous=Infinity;
+ for(const id of ['reference-align','reference-trim','bend-plane'])for(const p of [0,.25,.5,.75,1]){
+  const state=at(plan,id,p);assert.ok(state.referenceAxes.frame.length<=previous+1e-8);previous=state.referenceAxes.frame.length;
+  if(id!=='bend-plane')assert.equal(state.plane,null);
+  if(id==='bend-plane')close([state.referenceAxes.opacity],[.3]);
+ }
+ const start=at(plan,'bend-plane',0),end=at(plan,'bend-plane',1);assert.equal(start.plane.size,0);assert.ok(end.plane.size>0);assert.equal(end.plane.axis,'z');
 });

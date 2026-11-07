@@ -26,3 +26,17 @@ test('end-on direction follows the camera after orbiting to the opposite side',(
  const back=new PerspectiveCamera(45,1,.01,100);back.position.set(0,0,-5);back.lookAt(0,0,0);back.updateMatrixWorld();
  assert.equal(projectArrow(origin,new Vector3(0,0,1),back,600,600).toward,false);
 });
+
+test('a long axis crossing behind the close-up camera retains its visible root segment',()=>{
+ const close=new PerspectiveCamera(45,1,.01,100);close.updateMatrixWorld();
+ const from=new Vector3(0,0,-.1),to=new Vector3(.2,0,.1),result=projectArrow(from,to,close,600,600);
+ assert.ok(result);assert.equal(result.x,300);assert.equal(result.y,300);assert.ok(result.tx>600);
+ assert.ok(Object.values(result).every(v=>typeof v!=='number'||Number.isFinite(v)));
+ assert.deepEqual(from,new Vector3(0,0,-.1));assert.deepEqual(to,new Vector3(.2,0,.1));
+ assert.equal(projectArrow(new Vector3(0,0,.1),new Vector3(.2,0,.2),close,600,600),null);
+});
+test('far clipping preserves the visible part of a long axis',()=>{
+ const close=new PerspectiveCamera(45,1,.01,1);close.updateMatrixWorld();
+ assert.ok(projectArrow(new Vector3(0,0,-.1),new Vector3(.2,0,-5),close,600,600));
+ assert.equal(projectArrow(new Vector3(0,0,-2),new Vector3(.2,0,-5),close,600,600),null);
+});

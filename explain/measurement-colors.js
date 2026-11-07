@@ -10,6 +10,7 @@ export const measurementVectors={
  hip_turn_tilt:{turn:'x',tilt:'y'},
  spine_bend_tilt:{bend:'z',tilt:'x'},
  spine_azimuth_polar_spin:{azimuth:'z',polar:'y',spin:'x'},
+ hip_sway_thrust_lift:{sway:'x',thrust:'z',lift:'y'},
 };
 measurementVectors.torso_turn_bend_tilt_by_shoulder=measurementVectors.torso_turn_bend_tilt;
 

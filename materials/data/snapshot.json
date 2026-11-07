@@ -44,5 +44,13 @@
       "duration": 30,
       "stay": 5
     }
+  },
+  "position": {
+    "hip_sway_thrust_lift": {
+      "video": "00",
+      "frame": 300,
+      "duration": 40,
+      "stay": 10
+    }
   }
 }

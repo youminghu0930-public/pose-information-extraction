@@ -99,7 +99,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   });
   const setupPoseShadow=mesh=>{mesh.castShadow=true;};
   if(snapshot)[...bones.map(b=>b.mesh),...dots.filter(Boolean)].forEach(setupPoseShadow);
-  let referenceGroup,referenceDots=[],selectedPoseOpacity=1;
+  let referenceGroup,referenceDots=[],referenceBones=[],selectedPoseOpacity=1;
   if(snapshot){
     // Use the same transform for both poses: no independent centering or scaling.
     // The reference keeps depth testing but cannot obscure the selected pose.
@@ -117,7 +117,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       if(length<=1e-8)continue;
       const mesh=surface.bone(referenceMaterials.center);
       surface.placeBone(mesh,from,to);
-      referenceGroup.add(mesh);
+      referenceGroup.add(mesh);referenceBones.push({a,b,mesh});
     }
     names.forEach((name,index)=>{
       if(!valid(referencePose[index]))return;
@@ -127,7 +127,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
 
     referenceGroup.traverse(object=>{if(object.isMesh)setupPoseShadow(object);});
   }
-  function setSnapshotPoseOpacity(referenceOpacity,selectedOpacity,jointHighlights=[]){
+  function setSnapshotPoseOpacity(referenceOpacity,selectedOpacity,jointHighlights=[],boneHighlights=[]){
     if(!snapshot)return;
     selectedPoseOpacity=selectedOpacity;
     updatePoseShadowStrength(light,referenceOpacity,selectedOpacity);
@@ -143,6 +143,17 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
         const mesh=meshes[indexes[name]];if(!mesh)continue;
         const opacity=base+(1-base)*Math.max(0,Math.min(1,highlight.strength));
         mesh.material.opacity=Math.max(mesh.material.opacity,opacity);mesh.material.depthWrite=opacity>.999;
+      }
+    }
+    for(const highlight of boneHighlights){
+      const collection=highlight.pose==='reference'?referenceBones:bones,base=highlight.pose==='reference'?referenceOpacity:selectedOpacity;
+      for(const pair of highlight.pairs){
+        const ids=pair.map(name=>indexes[name]);
+        for(const bone of collection){
+          if(!((bone.a===ids[0]&&bone.b===ids[1])||(bone.a===ids[1]&&bone.b===ids[0])))continue;
+          const opacity=base+(1-base)*Math.max(0,Math.min(1,highlight.strength));
+          bone.mesh.material.opacity=Math.max(bone.mesh.material.opacity,opacity);bone.mesh.material.depthWrite=opacity>.999;
+        }
       }
     }
   }

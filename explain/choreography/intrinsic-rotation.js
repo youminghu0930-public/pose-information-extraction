@@ -1,3 +1,4 @@
+import {highlightRotationAxis} from './rotation-highlight.js';
 import {axes,rotate,add,mul} from '../math.js';
 import {completedAxes} from './axis-frame.js';
 import {referenceOverview,cameraOrientation,uprightCameraBetween} from './camera.js';
@@ -33,7 +34,7 @@ export function createIntrinsicRotation(reference,target,meta,values){
   }
   if(['turn','bend','tilt'].includes(s.id)){
    const key=s.id,axis={turn:'y',bend:'x',tilt:'z'}[key];state.active=key;state.referenceAxes.highlight=axis;
-   state.sectors=rotationSectors(key,state.values[key]);
+   state.sectors=rotationSectors(key,state.values[key]);highlightRotationAxis(state,p);
   }
   if(s.id==='finish')state.sectors=rotationSectors('tilt',values.tilt);
   if(s.id==='reset'){

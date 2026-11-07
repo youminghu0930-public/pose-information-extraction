@@ -5,7 +5,7 @@ import * as THREE from '../../vendor/three/three.module.js';
 import {axisColors,angleColor} from '../palette.js';
 import {add,mul} from '../math.js';
 // Projected SVG arrows have no volume and retain exact pixel widths on every GPU.
-export function createAxisFrameRenderer(scene,toWorld,width,canvas,colorAxes={}){
+export function createAxisFrameRenderer(scene,toWorld,baseWidth,canvas,colorAxes={}){
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.classList.add('explain-flat-axes');svg.setAttribute('aria-hidden','true');canvas.parentElement.append(svg);let state;const componentAngle=createRotationSector(scene,toWorld),projectionAngle=createRotationSector(scene,toWorld);
  const angleLabel=document.createElementNS(ns,'text');angleLabel.setAttribute('fill',angleColor);angleLabel.setAttribute('font-size','11');angleLabel.setAttribute('font-family','system-ui');angleLabel.setAttribute('stroke','#f4f7f0');angleLabel.setAttribute('stroke-width','3');angleLabel.setAttribute('paint-order','stroke');svg.append(angleLabel);
  const arrows=Object.fromEntries(Object.entries(axisColors).map(([key,defaultColor])=>{
@@ -35,7 +35,7 @@ export function createAxisFrameRenderer(scene,toWorld,width,canvas,colorAxes={})
   angleLabel.style.opacity=state?.angleMarker?.opacity??1;
   if(state?.angleMarker){const marker=state.angleMarker,p=toWorld(add(marker.origin,mul(add(marker.from,marker.to??state.frame.x),marker.radius*.7))).project(camera);angleLabel.setAttribute('x',(p.x+1)*w/2+4);angleLabel.setAttribute('y',(1-p.y)*h/2-4);angleLabel.textContent=(Math.abs(marker.angle-90)<.05?'90':marker.angle.toFixed(1))+'°';}
   for(const [key,{group,line,marker,label}] of Object.entries(arrows)){
-   const spec=state?.[key];group.style.display=spec?'':'none';if(!spec)continue;group.style.opacity=spec.opacity??1;
+   const width=baseWidth*(state?.widthScale??1),spec=state?.[key];group.style.display=spec?'':'none';if(!spec)continue;group.style.opacity=spec.opacity??1;
    const projection=projectArrow(toWorld(spec.from),toWorld(spec.to),camera,w,h);
    if(!projection){group.style.display='none';continue;}
    const {x,y,tx,ty,arrowOpacity,markerOpacity}=projection;
@@ -55,7 +55,7 @@ export function createAxisFrameRenderer(scene,toWorld,width,canvas,colorAxes={})
    if(shape)line.setAttribute('d',shape);
    line.style.display=shape?'':'none';line.style.opacity=bar||spec.keepVisible?1:arrowOpacity;
    marker.update(bar||spec.keepVisible?null:projection,width>=4?15:10);
-   label.style.display=markerOpacity>0&&!bar&&!spec.keepVisible?'':'none';label.setAttribute('x',tx+20);label.setAttribute('y',ty-15);
+   label.style.display=markerOpacity>0&&!bar&&!spec.keepVisible?'':'none';label.style.opacity=markerOpacity;label.setAttribute('x',tx+20);label.setAttribute('y',ty-15);
   }
  }
  return {update,updateView,dispose(){componentAngle.dispose();projectionAngle.dispose();svg.remove();geometry.dispose();plane.material.dispose();scene.remove(plane);}};

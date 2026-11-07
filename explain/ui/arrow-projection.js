@@ -6,8 +6,19 @@ import {ease,clamp} from './timeline.js';
 export function projectArrow(from,to,camera,width,height){
  const delta=to.clone().sub(from),length=delta.length();
  if(length<1e-7)return null;
- const a=from.clone().project(camera),b=to.clone().project(camera);
- if(a.z< -1||a.z>1||b.z< -1||b.z>1)return null;
+ // A close-up can put a long axis tip behind the camera. Clip its segment
+ // to the depth range instead of dropping the visible shaft at the root.
+ const depth=p=>-p.clone().applyMatrix4(camera.matrixWorldInverse).z;
+ const startDepth=depth(from),endDepth=depth(to),change=endDepth-startDepth;
+ const near=camera.near*1.0001,far=camera.far*.9999;
+ let start=0,end=1;
+ if(Math.abs(change)<1e-12){if(startDepth<near||startDepth>far)return null;}
+ else{
+  const a=(near-startDepth)/change,b=(far-startDepth)/change;
+  start=Math.max(0,Math.min(a,b));end=Math.min(1,Math.max(a,b));
+  if(start>=end)return null;
+ }
+ const a=from.clone().lerp(to,start).project(camera),b=from.clone().lerp(to,end).project(camera);
  const view=camera.getWorldDirection(new Vector3()),cosine=delta.multiplyScalar(1/length).dot(view);
  const angle=Math.acos(Math.min(1,Math.abs(cosine)))*180/Math.PI;
  const markerOpacity=ease(clamp((18-angle)/12));

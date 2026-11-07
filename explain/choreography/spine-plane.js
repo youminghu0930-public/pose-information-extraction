@@ -1,5 +1,7 @@
+import {fadeReviewTarget} from './review-timing.js';
+import {highlightRotationAxis} from './rotation-highlight.js';
 import {openingSegments,sampleOpening} from './opening.js';
-import {reviewTiming} from './review-timing.js';
+import {reviewTiming,referenceResetOpacity} from './review-timing.js';
 import {avoidEndOn} from './pair-camera.js';
 import {add,sub,mul,unit,project,cross,rotate} from '../math.js';
 import {frameDefinitions,completedAxes,mix} from './axis-frame.js';
@@ -56,7 +58,7 @@ export function createSpinePlaneChoreography(model){
   state.referenceAxes=axes(rotate(x,n,values.turn*p));state.referenceAxes.y=null;
   state.torsoAxes=axes(target,.42);
   state.values.turn=p===0?0:values.turn*p;state.active='turn';
-  state.sectors=[{origin,from:x,normal:n,angle:values.turn*p,radius:L*.8,axis:'y'}];
+  state.sectors=[{origin,from:x,normal:n,angle:values.turn*p,radius:L*.8,axis:'y'}];highlightRotationAxis(state,p);
  }
  function sampleState(time){
   const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start;
@@ -125,7 +127,7 @@ export function createSpinePlaneChoreography(model){
     rotationState(state,1);const t=ease(reviewProgress/.22);state.referenceAxes.opacity=1-t;state.values.turn=0;state.sectors=[];
     state.camera=uprightBetween(face,oblique,t);state.pairFocus={points:fitPoints,amount:1-t};state.focus=.32*t;
    }else if(reviewProgress<.4){
-    rotationState(state,0);state.referenceAxes.opacity=ease((reviewProgress-.22)/.18);state.sectors=[];state.focus=.32;state.camera=cameraBetween(oblique,oblique,1);
+    rotationState(state,0);state.referenceAxes.opacity=referenceResetOpacity(reviewProgress,s.duration,.4);state.sectors=[];state.focus=.32;state.camera=cameraBetween(oblique,oblique,1);
    }else{
     rotationState(state,ease(clamp((reviewProgress-.48)/.4)));state.focus=.32;state.camera=cameraBetween(oblique,oblique,1);
    }
@@ -138,6 +140,6 @@ export function createSpinePlaneChoreography(model){
   }
   return state;
  }
- function sample(time){const state=sampleState(time);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,reference.y);return state;}
+ function sample(time){const state=sampleState(time);fadeReviewTarget(state,segments,.4);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,reference.y);return state;}
  return {segments,duration,frames:{reference,torso},values,sample};
 }

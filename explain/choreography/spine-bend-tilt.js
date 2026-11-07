@@ -1,3 +1,5 @@
+import {fadeReviewTarget} from './review-timing.js';
+import {highlightRotationAxis} from './rotation-highlight.js';
 import {openingSegments,sampleOpening} from './opening.js';
 import {add,sub,mul,unit} from '../math.js';
 import {frameDefinitions,completedAxes,mix} from './axis-frame.js';
@@ -8,13 +10,14 @@ import {avoidEndOn} from './pair-camera.js';
 import {projectionView} from './vector-projection.js';
 import {referenceOverview,cameraOrientation,cameraBetween,uprightCameraBetween,uprightCamera,viewFromLeanSide} from './camera.js';
 import {scheduleTimeline} from '../timing.js';
-import {reviewTiming} from './review-timing.js';
+import {reviewTiming,referenceResetOpacity} from './review-timing.js';
 import {ease,clamp} from '../ui/timeline.js';
 
 export function createSpineBendTiltChoreography(model){
  const c=model.context,{entry,meta}=c,reference=frameDefinitions(c.data,meta,entry.frame).reference;
  const feature=c.spine(),pair={from:c.source(feature.from),to:c.source(feature.to),joints:feature.joints};
  const origin=pair.from,raw=unit(sub(pair.to,pair.from)),L=Math.hypot(...sub(pair.to,pair.from)),up=reference.y;
+ const compactLength=Math.min(reference.length,L*.4);
  const frame={...reference,origin,length:L},torso={...frame,y:raw};
  const values=Object.fromEntries(model.items.map(item=>[item.key,item.computed]));
  const front=referenceOverview(reference),preferred=add(add(reference.z,mul(reference.x,.55)),mul(up,.35));
@@ -25,7 +28,7 @@ export function createSpineBendTiltChoreography(model){
  const action=(id,motionDuration=1600,hold=500,extra={})=>({id,title:id.replaceAll('-',' '),duration:motionDuration+hold,motionDuration,...extra});
  const cycle=key=>[action(key+'-camera',1500),action(key+'-reference-fade',1200,900),action(key+'-ready',700),action(key,3200)];
  const segments=[...openingSegments(),action('reference-focus',1100),...prelude.segments,action('selected-focus',1300),action('measurement-camera',1800),
-  action('reference-align',1800),action('bend-plane',1400),action('reference-trim',1100),
+  action('reference-align',1800),action('reference-trim',1100),action('bend-plane',1400),
   ...['focus','grow','release','align'].map(phase=>action('spine-'+phase,phase==='grow'?1600:1100,500,{pairPhase:phase})),
   ...cycle('bend'),action('plane-switch',1400),action('tilt-plane',1400),...cycle('tilt'),
   {id:'finish',title:'Review spine bend and tilt',duration:6000,completion:true},action('reset',1200)];
@@ -37,7 +40,7 @@ export function createSpineBendTiltChoreography(model){
  function measured(state,key,p){
   const result=definitions[key].measure.sample(p);state.referenceAxes=axes(result.direction,1);state.referenceAxes.x.colorAxis=definitions[key].axis;state.torsoAxes=axes(raw,.42);
   state.values={bend:key==='bend'?result.angle:values.bend,tilt:key==='tilt'?result.angle:0};state.active=key;
-  state.sectors=[{origin,from:definitions[key].measure.baseline,normal:definitions[key].measure.axis,angle:result.angle,radius:L*.8,axis:definitions[key].axis}];
+  state.sectors=[{origin,from:definitions[key].measure.baseline,normal:definitions[key].measure.axis,angle:result.angle,radius:L*.8,axis:definitions[key].axis}];highlightRotationAxis(state,p);
  }
  function sampleState(time){
   const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
@@ -47,13 +50,13 @@ export function createSpineBendTiltChoreography(model){
   if(prelude.sample(state,s,p))return state;
   state.referencePose=0;state.selectedPose=.28;state.referenceAxes=completedAxes(reference);
   if(s.id==='selected-focus'){state.referencePose=.28*(1-p);state.selectedPose=.28*p;return state;}
-  const move=s.id==='reference-align'?p:has(s,'reference-align')?1:0,ref={...reference,origin:mix(reference.origin,origin,move),length:reference.length*(1-move)+L*move};
-  state.referenceAxes=completedAxes(ref);
+  const move=s.id==='reference-align'?p:has(s,'reference-align')?1:0,ref={...reference,origin:mix(reference.origin,origin,move),length:reference.length*(1-move)+compactLength*move};
+  state.referenceAxes=completedAxes(ref,has(s,'bend-plane')?.3:1);
   const fitPoints=[...points,ref.origin,...['x','y','z'].map(axis=>add(ref.origin,mul(ref[axis],ref.length)))];
   state.pairFocus={points:fitPoints,amount:s.id==='measurement-camera'?p:1};state.camera=between(front,stretch,s.id==='measurement-camera'?p:1);
   if(s.id==='measurement-camera')return state;
   if(has(s,'bend-plane'))state.plane=plane('bend',s.id==='bend-plane'?p:1);
-  if(s.id==='reference-trim')state.referenceAxes=completedAxes({...frame,length:L*(1-.6*p)},1-.7*p);
+  if(s.id==='reference-trim')state.referenceAxes=completedAxes({...frame,length:compactLength},1-.7*p);
   if(has(s,'spine-focus')){state.referenceAxes.x=null;state.referenceAxes.y=null;state.referenceAxes.z=null;}
   if(s.pairPhase){state.torsoAxes=axes(raw,.65);state.torsoAxes.x=jointPairArrow(pair,arrow(raw),s.pairPhase,p);state.jointHighlights=[{pose:'selected',joints:pair.joints,strength:jointPairEmphasis(s.pairPhase,p)}];return state;}
   if(!has(s,'bend-camera'))return state;
@@ -76,7 +79,7 @@ export function createSpineBendTiltChoreography(model){
    if(q<.22){const t=ease(q/.22);state.referenceAxes.opacity=1-t;state.values={bend:0,tilt:0};state.sectors=[];state.camera=between(definitions.tilt.view,overview,t);state.pairFocus={points:fitPoints,amount:1-t};state.focus=.32*t;state.plane.opacity=1-.4*t;}
    else{
     state.pairFocus=null;state.focus=.32;state.camera=between(overview,overview,1);
-    if(q<.38){measured(state,'bend',0);state.referenceAxes.opacity=ease((q-.22)/.16);state.sectors=[];state.plane=plane('bend',1,.6);}
+    if(q<.38){measured(state,'bend',0);state.referenceAxes.opacity=referenceResetOpacity(q,s.duration,.38);state.sectors=[];state.plane=plane('bend',1,.6);}
     else if(q<.64){measured(state,'bend',ease(clamp((q-.44)/.2)));state.plane=plane('bend',1,.6);}
     else {measured(state,'tilt',ease(clamp((q-.71)/.2)));if(q<.71)state.referenceAxes.opacity=ease((q-.64)/.07);}
    }
@@ -89,11 +92,11 @@ export function createSpineBendTiltChoreography(model){
   return state;
  }
  function sample(time){
-  const state=sampleState(time);
+  const state=sampleState(time);fadeReviewTarget(state,segments,.38);
   // Retain a compact global reference independently of the measuring arrow.
   if(index(state.segment)>=index('spine-focus')){
    const remaining=state.segment==='reset'?1-ease(clamp((time-segments.at(-1).start)/(segments.at(-1).motionDuration??segments.at(-1).duration))):1;
-   state.originalReferenceAxes=completedAxes({...frame,length:L*.4},.3*remaining);
+   state.originalReferenceAxes=completedAxes({...frame,length:compactLength},.3*remaining);
   }
   if(state.segment==='reset')state.referencePose=0;
   state.camera=uprightCamera(state.camera,up);return state;

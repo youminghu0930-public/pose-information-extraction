@@ -1,3 +1,5 @@
+import {fadeReviewTarget} from './review-timing.js';
+import {highlightRotationAxis} from './rotation-highlight.js';
 import {blendAxisColors} from '../palette.js';
 import {openingSegments,sampleOpening} from './opening.js';
 import {add,sub,mul,unit,cross} from '../math.js';
@@ -9,7 +11,7 @@ import {avoidEndOn} from './pair-camera.js';
 import {projectionMotion,projectionView,planeProjectionAngle,projectionSweep} from './vector-projection.js';
 import {referenceOverview,cameraOrientation,cameraBetween,uprightCameraBetween,uprightCamera} from './camera.js';
 import {scheduleTimeline} from '../timing.js';
-import {reviewTiming} from './review-timing.js';
+import {reviewTiming,referenceResetOpacity} from './review-timing.js';
 import {ease,clamp} from '../ui/timeline.js';
 
 export function createLateralTurnTiltChoreography(model){
@@ -43,7 +45,7 @@ export function createLateralTurnTiltChoreography(model){
  function rotateState(state,key,p){
   const result=rotation.sample(key,p);state.referenceAxes=referenceAxes(result.direction);state.torsoAxes=axes(key==='turn'?horizontal:raw,.42);
   if(key==='tilt')tiltColor(state,1);
-  state.values=result.values;state.active=key;state.sectors=[{...result.sector,origin,radius:L*.8}];
+  state.values=result.values;state.active=key;state.sectors=[{...result.sector,origin,radius:L*.8}];highlightRotationAxis(state,p);
  }
  function sampleState(time){
   const s=segments.find(s=>time<s.end)??segments.at(-1),elapsed=time-s.start,progress=clamp(elapsed/s.duration),p=ease(clamp(elapsed/(s.motionDuration??s.duration)));
@@ -95,7 +97,7 @@ export function createLateralTurnTiltChoreography(model){
    if(q<.22){const t=ease(q/.22);state.referenceAxes.opacity=1-t;state.values={turn:0,tilt:0};state.sectors=[];state.camera=between(side,oblique,t);state.pairFocus={points:fitPoints,amount:1-t};state.focus=.32*t;}
    else{
     state.pairFocus=null;state.focus=.32;state.camera=between(oblique,oblique,1);
-    if(q<.38){rotateState(state,'turn',0);state.referenceAxes.opacity=ease((q-.22)/.16);state.sectors=[];}
+    if(q<.38){rotateState(state,'turn',0);state.referenceAxes.opacity=referenceResetOpacity(q,s.duration,.38);state.sectors=[];}
     else if(q<.64)rotateState(state,'turn',ease(clamp((q-.44)/.2)));
     else {rotateState(state,'tilt',ease(clamp((q-.71)/.2)));tiltColor(state,ease(clamp((q-.64)/.07)));}
    }
@@ -107,6 +109,6 @@ export function createLateralTurnTiltChoreography(model){
   }
   return state;
  }
- function sample(time){const state=sampleState(time);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,up);return state;}
+ function sample(time){const state=sampleState(time);fadeReviewTarget(state,segments,.38,[{at:.64,ready:.71}]);if(state.segment==='reset')state.referencePose=0;state.camera=uprightCamera(state.camera,up);return state;}
  return {segments,duration,frames:{reference,torso},values,sample};
 }
