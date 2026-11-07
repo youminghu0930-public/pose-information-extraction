@@ -81,8 +81,24 @@ export function createSpineBendTiltChoreography(model){
    else{
     state.pairFocus=null;state.focus=.32;state.camera=between(overview,overview,1);
     if(q<.38){measured(state,'bend',0);state.referenceAxes.opacity=referenceResetOpacity(q,s.duration,.38);state.sectors=[];state.plane=plane('bend',1,.6);}
-    else if(q<.64){measured(state,'bend',ease(clamp((q-.44)/.2)));state.plane=plane('bend',1,.6);}
-    else {measured(state,'tilt',ease(clamp((q-.71)/.2)));if(q<.71)state.referenceAxes.opacity=ease((q-.64)/.07);}
+    else {
+     // Fade the completed comparison away, then pause with neither plane
+     // present before introducing side tilt. Every interval scales with review.
+     const hold=.08,fade=.07,settle=.05;
+     const motion=(1-.04-.04-hold-fade-settle)/2,t=clamp((q-.38)/.62),bendEnd=.04+motion,fadeEnd=bendEnd+fade,holdEnd=fadeEnd+hold,tiltStart=holdEnd+settle;
+     if(t<fadeEnd){
+      measured(state,'bend',ease(clamp((t-.04)/motion)));
+      const opacity=1-ease(clamp((t-bendEnd)/fade));
+      state.plane=plane('bend',1,.6*opacity);state.referenceAxes.opacity=opacity;
+      state.sectors.forEach(sector=>{sector.opacity=opacity;});
+     }else if(t<holdEnd){
+      measured(state,'bend',1);state.plane=null;state.referenceAxes.opacity=0;state.sectors=[];
+     }else{
+      measured(state,'tilt',ease(clamp((t-tiltStart)/motion)));
+      const opacity=ease(clamp((t-holdEnd)/settle));
+      state.plane=plane('tilt',1,.6*opacity);state.referenceAxes.opacity=opacity;
+     }
+    }
    }
    state.selectedPose=.28+.02*ease(clamp(q/.22));return state;
   }

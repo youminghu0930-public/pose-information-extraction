@@ -5,18 +5,18 @@
   ],
   "metrics": {
     "kinematic": {
-      "torso_turn_bend_tilt":         {"start_stay":1.5, "explain":40, "transition":1, "review":10, "end_stay":1},
-      "shoulder_turn_on_spine_plane": {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1},
-      "hip_turn_on_spine_plane":      {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1}
+      "torso_turn_bend_tilt":         {"start_stay":1.5, "explain":40, "transition":1, "review":7.5, "end_stay":1},
+      "shoulder_turn_on_spine_plane": {"start_stay":1.5, "explain":40, "transition":1, "review":2.5, "end_stay":1},
+      "hip_turn_on_spine_plane":      {"start_stay":1.5, "explain":40, "transition":1, "review":2.5, "end_stay":1}
     },
     "geometric": {
-      "spine_bend_tilt":              {"start_stay":1.5, "explain":40, "transition":1, "review":7, "end_stay":1},
-      "spine_azimuth_polar_spin":     {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1},
+      "spine_bend_tilt":              {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1},
+      "spine_azimuth_polar_spin":     {"start_stay":1.5, "explain":40, "transition":1, "review":7.5, "end_stay":1},
       "shoulder_turn_tilt":           {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1},
       "hip_turn_tilt":                {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1}
     },
     "position": {
-      "hip_sway_thrust_lift":         {"start_stay":1.5, "explain":40, "transition":1, "review":5, "end_stay":1}
+      "hip_sway_thrust_lift":         {"start_stay":1.5, "explain":40, "transition":1, "review":7.5, "end_stay":1}
     }
   }
 }

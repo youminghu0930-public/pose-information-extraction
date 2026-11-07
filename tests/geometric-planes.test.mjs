@@ -113,3 +113,32 @@ test('spine reference shrinks once, then turns translucent before the yellow pla
  }
  const start=at(plan,'bend-plane',0),end=at(plan,'bend-plane',1);assert.equal(start.plane.size,0);assert.ok(end.plane.size>0);assert.equal(end.plane.axis,'z');
 });
+
+test('spine review pauses after the bend plane disappears and before side tilt appears',()=>{
+ const {model}=setup('00.json',300,'spine_bend_tilt');
+ const entry={...model.context.entry,start_stay:1.5,explain:40,transition:1,review:7,end_stay:1};
+ const plan=createSpineBendTiltChoreography(explainSnapshot(model.context.data,model.context.metrics,entry)),review=plan.segments.find(s=>s.id==='finish');
+ // The review adapter maps replay progress onto q=.38..1.
+ const atReview=q=>plan.sample(review.start+review.duration*(q-.38)/.62);
+ const a=atReview(.68),b=atReview(.70);
+ assert.equal(a.active,'bend');assert.equal(b.active,'bend');
+ for(const key of ['referenceAxes','torsoAxes','values','plane','camera'])assert.deepEqual(a[key],b[key]);
+ assert.equal(a.values.bend,model.items.find(item=>item.key==='bend').computed);
+ assert.equal(a.values.tilt,0);assert.equal(a.plane,null);assert.equal(a.referenceAxes.opacity,0);assert.deepEqual(a.sectors,[]);
+ assert.equal(atReview(.74).values.tilt,0);
+ assert.equal(atReview(.85).active,'tilt');
+ assert.ok(Math.abs(plan.duration-50500)<1e-6);
+});
+
+test('spine review pause scales proportionally with configured review duration',()=>{
+ const {model}=setup('00.json',300,'spine_bend_tilt');
+ for(const seconds of [3,5,10]){
+  const plan=createSpineBendTiltChoreography(explainSnapshot(model.context.data,model.context.metrics,{...model.context.entry,start_stay:1.5,explain:40,transition:1,review:seconds,end_stay:1}));
+  const review=plan.segments.find(s=>s.id==='finish'),duration=review.duration;
+  const hold=.08,fade=.07,settle=.05,motion=(.92-hold-fade-settle)/2;
+  const start=review.start+(.04+motion+fade)*duration;
+  const a=plan.sample(start+.01*duration),b=plan.sample(start+.07*duration);
+  for(const key of ['referenceAxes','torsoAxes','values','plane','camera'])assert.deepEqual(a[key],b[key]);
+  assert.equal(a.active,'bend');assert.equal(a.values.tilt,0);assert.equal(a.plane,null);assert.equal(b.plane,null);
+ }
+});
