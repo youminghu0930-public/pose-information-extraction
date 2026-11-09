@@ -245,3 +245,15 @@ Review keeps Explain’s rotation restriction until its camera completes the ini
 ### Independent review transition
 
 Metric configs include `transition` (nonnegative seconds) alongside `start_stay`, `explain`, `review`, and `end_stay`. It separately controls the final-result hold, camera approach and helper reset before replay; changing it does not change replay tempo. The timeline still has four tags: Explain spans `explain + transition`, and Review starts only after setup is complete. Explain’s pause-to-rotate and smooth-resume rules cover the transition. Review has no rotation lock. Its angle/T intersection pivots remain unchanged.
+
+### Video measurements
+
+The video workspace reuses the snapshot metric navigator, header vocabulary, measurement colors and selectable value cards. The three POV presets remain calibrated, while camera models, tripods, frustums, image planes, ground-distance guides and camera-distance controls are omitted. Source decoding and `sync.json` mapping remain unchanged.
+
+Each metric supplies one plot channel per measurement, with a single time cursor spanning the channels. Values, plots and selected static overlays update from the same reconstruction frame during playback, scrubbing and stepping. Selecting multiple cards displays their completed snapshot measurement geometry; deselecting removes it. Metric choice and selected overlays persist when switching recordings. Static overlays do not run an explanation clock or change the camera.
+
+`measurement-series.js` supplies plot data, `static-measurement.js` samples final geometry from shared choreography factories, and `ui/video-measurements.js`, `measurement-plot.js` and `video-overlays.js` isolate the UI and renderers. The static sampler bounds its frame cache.
+
+The video metric header is omitted. All measurement curves share one plot and one vertical scale with numeric ticks/grid lines, plus the current-frame cursor. Range summaries and absolute-time labels are omitted. Decoder retry messages are kept out of the video UI.
+
+The video plot is one row (68 px) tall. Its legend sits outside the chart on the right and toggles each curve independently; the vertical scale remains fixed when curves are hidden. Measurement cards continue to control the 3D overlays separately.

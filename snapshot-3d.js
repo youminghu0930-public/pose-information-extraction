@@ -1,3 +1,4 @@
+import {createVideoMetricOverlays} from './explain/ui/video-overlays.js';
 import {rotationBoundsCenter} from './snapshot-framing.js';
 import {updatePoseShadowStrength} from './pose-shadow.js';
 import {createViewNavigation} from './explain/ui/view-navigation.js';
@@ -16,7 +17,7 @@ export async function mountSnapshots(root,options={}){
  const {mountMetricSnapshots}=await import('./explain/ui/snapshots.js');
  return mountMetricSnapshots(root,{...options,mountScene:mountPoseScene});
 }
-export async function mountPoseScene(card, id, entry, { showCameras = false, autoPlay = true, cameraVideos = {}, rawDetections = {}, bannerMode = false, snapshotMetrics } = {}) {
+export async function mountPoseScene(card, id, entry, { showCameras = false, autoPlay = true, cameraVideos = {}, rawDetections = {}, bannerMode = false, snapshotMetrics, videoMetrics, calibratedViews = false } = {}) {
   const poseData = await json(`materials/data/3d_results/${encodeURIComponent(id)}.json`);
   const {reconstruction: frames, calibration, joints: jointNames} = poseData;
   const {names,edges,indexes,clubEdges} = poseStructure(jointNames);
@@ -71,7 +72,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   const camera = new THREE.PerspectiveCamera(45,1,.01,100);
-  const bound = radius/unit;
+  const bound = radius/unit,worldFramingPoints=points.map(vector);
   scene.add(new THREE.HemisphereLight('#ffffff','#7d8974',2));
   const light = new THREE.DirectionalLight('#fff6df',3);
   light.position.set(-2,4,3); light.castShadow = true;
@@ -130,11 +131,11 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     referenceGroup.traverse(object=>{if(object.isMesh)setupPoseShadow(object);});
   }
   function setSnapshotPoseOpacity(referenceOpacity,selectedOpacity,jointHighlights=[],boneHighlights=[]){
-    if(!snapshot)return;
+    if(!snapshot&&!videoMetrics)return;
     selectedPoseOpacity=selectedOpacity;
     updatePoseShadowStrength(light,referenceOpacity,selectedOpacity);
-    referenceGroup.visible=referenceOpacity>.001;
-    referenceGroup.traverse(object=>{if(object.material){object.material.opacity=referenceOpacity;object.material.transparent=true;object.material.depthWrite=referenceOpacity>.999;object.castShadow=true;}});
+    if(referenceGroup)referenceGroup.visible=referenceOpacity>.001;
+    referenceGroup?.traverse(object=>{if(object.material){object.material.opacity=referenceOpacity;object.material.transparent=true;object.material.depthWrite=referenceOpacity>.999;object.castShadow=true;}});
     for(const object of [...bones.map(b=>b.mesh),...dots.filter(Boolean)]){
       object.material.transparent=true;object.material.opacity=selectedOpacity;object.material.depthWrite=selectedOpacity>.999;object.castShadow=true;
     }
@@ -294,7 +295,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     }
   }
   let cameraBound = bound;
-  for(const [view,cal] of Object.entries(showCameras ? calibration || {} : {})) {
+  for(const [view,cal] of Object.entries(showCameras||calibratedViews ? calibration || {} : {})) {
     const {R,t}=cal;
     if(!Array.isArray(R)||R.length!==3||!R.every(row=>valid(row))||!valid(t))continue;
     const cameraToWorld = v => R.map(row=>row.reduce((sum,value,j)=>sum+value*v[j],0));
@@ -303,6 +304,11 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     cameraBound=Math.max(cameraBound,position.length()+.25);
     const direction = v => {const p=cameraToWorld(v);return new THREE.Vector3(p[0],-p[1],-p[2]);};
     const right=direction([1,0,0]),up=direction([0,-1,0]),back=direction([0,0,-1]);
+    if(!showCameras){
+      const rotation=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right,up,back));
+      cameraPresets.set(view,{position:position.clone(),rotation,K:cal.intrinsic,video:cameraVideos[view]});
+      continue;
+    }
     const group=new THREE.Group();group.position.copy(position);
     group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right,up,back));
     cameraObjects.add(group);
@@ -487,7 +493,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   if(Object.keys(cameraVideos).length){yaw=-.65;pitch=.3;}
   const navigation=snapshot?createViewNavigation(draw):null;
   if(navigation)mediaCleanup.push(()=>navigation.dispose());
-  let renderWidth=0,renderHeight=0;
+  let renderWidth=0,renderHeight=0,videoFitDistance,videoFitAspect;
   function draw() {
     const w=canvas.clientWidth,h=canvas.clientHeight;
     if(!w||!h)return;
@@ -510,7 +516,17 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       const manual=navigation.orient(direction,up);
       // Fit the scripted view only. Manual orbit changes angle, never radius.
       snapshotFitView={direction,up,verticalHalfFov,aspect:camera.aspect,manual};
-      distance=fitViewDistance(points.map(vector),cameraTarget,direction,up,verticalHalfFov,camera.aspect)*distanceScale;
+      distance=fitViewDistance(worldFramingPoints,cameraTarget,direction,up,verticalHalfFov,camera.aspect)*distanceScale;
+    }
+    if(videoMetrics&&selectedView==='free-view'){
+      // Fit the narrower metric layout once per viewport, using the default
+      // angle so manual rotation retains a stable radius.
+      if(videoFitAspect!==camera.aspect){
+        const defaultYaw=Object.keys(cameraVideos).length?-.65:0,defaultPitch=Object.keys(cameraVideos).length?.3:0;
+        const direction=new THREE.Vector3(Math.sin(defaultYaw)*Math.cos(defaultPitch),Math.sin(defaultPitch),Math.cos(defaultYaw)*Math.cos(defaultPitch));
+        videoFitDistance=fitViewDistance(worldFramingPoints,cameraTarget,direction,new THREE.Vector3(0,1,0),verticalHalfFov,camera.aspect);videoFitAspect=camera.aspect;
+      }
+      distance=videoFitDistance*distanceScale;
     }
     if(snapshotPairFocus){const fit=fitPairCamera(snapshotPairFocus,vector,halfFov,distance,cameraTarget,snapshotFocusZoom,snapshotFitView);cameraTarget.copy(fit.target);distance=fit.distance;camera.zoom=viewZoom*fit.zoom;}
     camera.far=Math.max(100,distance+bound*5);
@@ -670,6 +686,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   }
   const resizeObserver=new ResizeObserver(draw);resizeObserver.observe(canvas); draw();
   let animationHandle,disposed=false,playbackEnabled=true;
+  let metricOverlays;
   const controller={
     setView(value,{animate=true}={}){
       const next=cameraPresets.has(value)?value:'free-view';
@@ -704,9 +721,15 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       distanceScale=Math.max(.4,Math.min(3,distance));draw();
     },
     setPlaying(value){playbackEnabled=Boolean(value);},
-    setFrame(value){frame=Math.max(start,Math.min(end,Math.floor(value)));draw();},
+    setFrame(value){frame=Math.max(start,Math.min(end,Math.floor(value)));metricOverlays?.setFrame(frame);draw();},
+    setMetricSelection(metric,keys=[]){metricOverlays?.setMetric(metric,keys);draw();},
+    setMeasurementSelection(keys){metricOverlays?.setSelection(keys);draw();},
     dispose(){cancelAnimationFrame(flightHandle);mediaCleanup.forEach(cleanup=>cleanup());disposed=true;cancelAnimationFrame(animationHandle);resizeObserver.disconnect();renderer.dispose();const geometries=new Set(),materials=new Set();scene.traverse(object=>{if(object.geometry)geometries.add(object.geometry);if(object.material)materials.add(object.material);});geometries.forEach(g=>g.dispose());materials.forEach(m=>{m.map?.dispose();m.dispose();});},
   };
+  if(videoMetrics){
+    metricOverlays=createVideoMetricOverlays({scene,toWorld:vector,canvas,data:poseData,metrics:videoMetrics,setPoses:setSnapshotPoseOpacity});
+    snapshotOverlayView=metricOverlays.updateView;mediaCleanup.push(()=>metricOverlays.dispose());
+  }
   if(snapshot){
     const playback=mountSnapshotExplanation(card,{id,poseData,metrics:snapshotMetrics,entry,scene,toWorld:vector,setPoses:setSnapshotPoseOpacity,draw,canvas,navigation,
       setRotationPivot:value=>{snapshotRotationPivot=value;},setCamera:value=>{snapshotCamera=value;},setPairFocus:value=>{snapshotPairFocus=value;},

@@ -1,4 +1,8 @@
-import {unlockVideo,waitForDecoders,VIDEO_RETRY_MESSAGE} from './video-recovery.js';
+import {createViewerInfo} from './explain/ui/viewer-info.js';
+import {parseSnapshotConfiguration} from './snapshot-config.js';
+import {createMetricNavigator} from './explain/ui/navigator.js';
+import {createVideoMeasurements} from './explain/ui/video-measurements.js';
+import {unlockVideo,waitForDecoders} from './video-recovery.js';
 import {createFrameSeeker} from './frame-seeker.js';
 import {installFrameKeys} from './frame-keys.js';
 import {mountPoseScene} from './snapshot-3d.js';
@@ -23,14 +27,26 @@ function setPlaybackButton(button,playing){
   button.title=playing?'Stop':'Play';button.setAttribute('aria-label',button.title);
 }
 export async function mountVideos(root){
-  root.append(make('h3','Videos','result-subheading media-heading'));
-  const shell=make('div',undefined,'video-workspace');
+  const heading=make('h3','Videos','result-subheading media-heading viewer-section-heading');
+  heading.append(createViewerInfo('video-instructions','Video instructions',[
+    {gesture:'Rotate',action:'Left-drag or drag with one finger.'},
+    {gesture:'Pan',action:'Right-drag or drag with two fingers.'},
+    {gesture:'Zoom',action:'Scroll or pinch.'},
+    {gesture:'Playback',action:'Press Space to play or pause. Use ← / → to step frames; hold to repeat.'},
+    {gesture:'Measurements',action:'Select a measurement to show its geometry. Use the plot legend to show or hide curves.'},
+  ],'section-info'));root.append(heading);
+  const shell=make('div',undefined,'video-workspace video-metric-workspace');
   const player=make('div',undefined,'reconstruction-player comparison-player'),sidebar=make('aside',undefined,'video-sidebar');
   player.tabIndex=0;player.setAttribute('aria-label','Video reconstruction player');
-  sidebar.append(make('h4','Swing videos'));
+  const sidebarHeading=make('div',undefined,'sidebar-heading'),videoCount=make('span');sidebarHeading.append(make('h4','Swing videos'),videoCount);sidebar.append(sidebarHeading);
+  const loadingMetrics=make('aside',undefined,'snapshot-metric-navigator');loadingMetrics.setAttribute('aria-label','Video metrics');loadingMetrics.append(make('h4','Choose a metric','snapshot-navigator-title'));shell.append(loadingMetrics);
   const list=make('div',undefined,'video-name-list video-list');list.append(make('p','Loading video list…','section-note'));sidebar.append(list);shell.append(player,sidebar);root.append(shell);
-  const placeholder=make('div',undefined,'video-pose');placeholder.setAttribute('aria-busy','true');player.append(placeholder);
-  const [catalog,credits]=await Promise.all([json('materials/data/videos.json'),json('materials/data/credits.json')]);
+  const placeholder=make('div','Loading videos…','video-loading-placeholder');placeholder.setAttribute('role','status');player.append(placeholder);
+  const [catalog,credits,configResponse]=await Promise.all([json('materials/data/videos.json'),json('materials/data/credits.json'),fetch('materials/data/snapshot.json')]);
+  const {entries:metricEntries}=parseSnapshotConfiguration(await configResponse.text());
+  let selectedMetric=0,refreshMetric=()=>{},measurementView,overlayKeys=[];
+  const metricNavigator=createMetricNavigator(metricEntries,index=>{if(index!==selectedMetric)overlayKeys=[];selectedMetric=index;metricNavigator.select(index);refreshMetric();});
+  metricNavigator.root.setAttribute('aria-label','Video metrics');metricNavigator.select(0);loadingMetrics.replaceWith(metricNavigator.root);
   let controller,media=[],version=0,frame=0,playing=false,raf,videoCallback,callbackVideo,selectionAbort,seekers=[],shortcutReady=false,shortcutStep,shortcutToggle;
   let activeView='free-view',playbackVersion=0;
   const content=make('div',undefined,'video-player-content'),details=make('div',undefined,'video-details');
@@ -39,7 +55,7 @@ export async function mountVideos(root){
   const viewButtons=[];
   for(const [value,label] of [['face-on','Face-on view'],['down-the-line','Down-the-line view'],['free-view','Free-view']]){
     const button=make('button',label);button.type='button';button.setAttribute('aria-pressed',String(value===activeView));
-    button.onclick=()=>{activeView=value;controller?.setView(value);if(value!=='free-view'){const distance=content.querySelector('[aria-label="Camera distance"]');if(distance){distance.value=String(Math.log(1/.4)/Math.log(3/.4));distance.setAttribute('aria-valuetext','1.00× camera distance');}}viewButtons.forEach(([b,v])=>b.setAttribute('aria-pressed',String(v===value)));};
+    button.onclick=()=>{activeView=value;controller?.setView(value);viewButtons.forEach(([b,v])=>b.setAttribute('aria-pressed',String(v===value)));};
     viewOptions.append(button);viewButtons.push([button,value]);
   }
   player.replaceChildren(viewOptions,content);
@@ -48,7 +64,7 @@ export async function mountVideos(root){
   function stop(){++playbackVersion;playing=false;cancelAnimationFrame(raf);if(callbackVideo&&videoCallback!==undefined)callbackVideo.cancelVideoFrameCallback(videoCallback);videoCallback=undefined;media.forEach(video=>{video.pause();video.playbackRate=1;});}
   let selectedId,refreshing=false;
   function renderList(){
-    list.replaceChildren();buttons.length=0;
+    list.replaceChildren();buttons.length=0;videoCount.textContent=`${catalog.length} videos`;
     catalog.forEach((clip,i)=>{
       const button=make('button',undefined,'video-item');const caption=make('span');caption.append(make('strong',clip.name));button.append(caption);button.type='button';button.setAttribute('aria-pressed',String(clip.id===selectedId));button.onclick=()=>select(clip,i);list.append(button);buttons.push(button);
     });
@@ -72,21 +88,10 @@ export async function mountVideos(root){
     selectedId=clip.id;
     const request=++version;shortcutReady=false;frameKeys.clear();seekers.forEach(seeker=>seeker.reset());seekers=[];selectionAbort?.abort();selectionAbort=new AbortController();const signal=selectionAbort.signal;stop();controller?.dispose();controller=undefined;media.forEach(v=>{v.removeAttribute('src');v.load();});media=[];
     frame=0;buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));
-    content.replaceChildren();details.replaceChildren();
+    content.replaceChildren();details.replaceChildren();measurementView=undefined;refreshMetric=()=>{};
     const views=make('div',undefined,'video-source-decoders');
-    const pose=make('article',undefined,'video-pose');
-    const distanceControl=make('label',undefined,'camera-distance-control');
-    const distanceLabel=make('span','Distance');
-    const distanceSlider=make('input');distanceSlider.type='range';distanceSlider.min='0';distanceSlider.max='1';distanceSlider.step='.001';distanceSlider.value=String(Math.log(1/.4)/Math.log(3/.4));distanceSlider.disabled=true;
-    distanceSlider.setAttribute('aria-label','Camera distance');distanceSlider.title='Camera distance';
-    const updateDistance=()=>{
-      const distance=.4*Math.pow(3/.4,Number(distanceSlider.value));
-      distanceSlider.setAttribute('aria-valuetext',`${distance.toFixed(2)}× camera distance`);
-      controller?.setDistance(distance);
-    };
-    distanceSlider.setAttribute('aria-valuetext','1.00× camera distance');
-    distanceSlider.oninput=updateDistance;
-    distanceControl.append(distanceLabel,distanceSlider);pose.append(distanceControl);
+    const pose=make('article',undefined,'video-pose');pose.setAttribute('aria-busy','true');
+    const loadingMask=make('div','Loading reconstruction…','video-loading-mask');loadingMask.setAttribute('role','status');pose.append(loadingMask);
     const status=make('p','Loading reconstruction…','section-note');status.setAttribute('role','status');
     for(const view of clip.views){
       const panel=make('div');
@@ -103,15 +108,8 @@ export async function mountVideos(root){
     const slider=make('input',undefined,'frame-slider');slider.type='range';slider.min=0;slider.max=clip.frames-1;slider.value=0;slider.setAttribute('aria-label','Video frame');slider.disabled=true;
     const meta=make('div',undefined,'player-meta');
     const counter=make('output',`Frame 1 / ${clip.frames}`);meta.append(counter,status);
-    const keyboardHint=make('div',undefined,'viewer-instructions');
-    const instructionLines=[
-      'Drag with the left mouse button or one finger to rotate.',
-      'Drag with the right mouse button or two fingers to pan.',
-      'Scroll or pinch to zoom.',
-      'Press Space to play or pause. Tap ← / → to step one frame; hold to repeat.',
-    ];
-    instructionLines.forEach(line=>keyboardHint.append(make('p',line,'keyboard-hint')));
-    content.append(views,pose,slider,meta,controls);details.append(keyboardHint);
+    const controlRow=make('div',undefined,'player-control-row');controlRow.append(meta,controls);
+    content.append(views,pose,slider,controlRow);
     const creditValue=credits[clip.id]??credits[clip.id.split('-')[0]];
     if(creditValue){
       try{
@@ -137,19 +135,28 @@ export async function mountVideos(root){
       if(!reconstructionReady){status.textContent=performance.now()-startedAt>20000?'Still loading the 3D reconstruction… This is taking longer than usual.':'Loading reconstruction…';return;}
       const stalled=sources.some((video,i)=>video.readyState<2&&performance.now()-lastDecoded[i]>10000);
       if(stalled||sources.some(video=>video.error))retryNeeded=true;
-      status.textContent=retryNeeded?VIDEO_RETRY_MESSAGE:'';
+      status.textContent='';
       setPlaybackButton(play,playing&&!retryNeeded);
     };
     const statusTimer=setInterval(updateStatus,1000);
     signal.addEventListener('abort',()=>clearInterval(statusTimer),{once:true});
     for(const video of sources)for(const event of ['progress','loadeddata','waiting','playing','error','stalled'])video.addEventListener(event,updateStatus,{signal});
-    let sync;
-    try{sync=await json(clip.sync);
+    let sync,metrics;
+    try{[sync,metrics]=await Promise.all([json(clip.sync),json(`materials/data/metrics/${encodeURIComponent(clip.id)}.json`)]);
       if(request!==version)return;
-      readyController=await mountPoseScene(pose,clip.id,{range:[0,clip.frames-1],fps:clip.fps,joints:['golf_club_head']},{showCameras:true,autoPlay:false,cameraVideos:Object.fromEntries(clip.views.map((view,i)=>[view.name,media[i]]))});}
-    catch(error){if(request===version){console.error(error);clearInterval(statusTimer);status.textContent='The reconstruction could not be loaded. Select another swing or reload to retry.';}return;}
+      readyController=await mountPoseScene(pose,clip.id,{range:[0,clip.frames-1],fps:clip.fps,joints:['golf_club_head']},{showCameras:false,calibratedViews:true,videoMetrics:metrics,autoPlay:false,cameraVideos:Object.fromEntries(clip.views.map((view,i)=>[view.name,media[i]]))});}
+    catch(error){if(request===version){console.error(error);clearInterval(statusTimer);status.textContent='The reconstruction could not be loaded. Select another swing or reload to retry.';loadingMask.remove();pose.setAttribute('aria-busy','false');}return;}
     if(request!==version){readyController.dispose();return;}controller=readyController;reconstructionReady=true;controller.setView(activeView,{animate:false});
-    distanceSlider.disabled=false;
+
+    refreshMetric=()=>{
+      if(request!==version)return;
+      const [,entry]=metricEntries[selectedMetric];
+      measurementView?.measurements.remove();measurementView?.plot.remove();
+      measurementView=createVideoMeasurements({entry,metrics,frameCount:clip.frames,fps:clip.fps,selectedKeys:overlayKeys,onSelection:keys=>{overlayKeys=keys;controller?.setMeasurementSelection(keys);}});
+      pose.after(measurementView.measurements,measurementView.plot);
+      controller.setMetricSelection(entry,overlayKeys);measurementView.update(frame);
+    };
+    refreshMetric();
     const times=clip.views.map(view=>Array.from({length:view.frames},(_,i)=>i/view.fps));
     // Exact timestamps improve decoding, but never gate the reconstruction UI.
     clip.views.forEach((view,i)=>json(view.src+'.frames.json').then(value=>{if(request===version)times[i]=value;}).catch(()=>{}));
@@ -165,7 +172,7 @@ export async function mountVideos(root){
         }
       }
     }));
-    function updateLabel(index){slider.value=index;counter.textContent=`Frame ${index+1} / ${clip.frames}`;slider.setAttribute('aria-valuetext',counter.textContent);}
+    function updateLabel(index){measurementView?.update(index);slider.value=index;counter.textContent=`Frame ${index+1} / ${clip.frames}`;slider.setAttribute('aria-valuetext',counter.textContent);}
     const fps=clip.fps;
     function showFrame(value,seek=true){
       const target=Math.max(0,Math.min(clip.frames-1,Math.floor(value)));
@@ -213,9 +220,9 @@ export async function mountVideos(root){
     previous.onclick=()=>{pause();showFrame(requestedFrame-1);};next.onclick=()=>{pause();showFrame(requestedFrame+1);};slider.oninput=()=>{pause();showFrame(Number(slider.value));};
     media.forEach((video,i)=>video.addEventListener('loadedmetadata',()=>{if(request===version)video.currentTime=times[i][rawFrame(i,frame)]??rawFrame(i,frame)/clip.views[i].fps;}));
     shortcutStep=delta=>{player.focus({preventScroll:true});pause();showFrame(requestedFrame+delta);};shortcutToggle=()=>{player.focus({preventScroll:true});togglePlayback();};shortcutReady=true;
-    distanceSlider.disabled=false;
+
     for(const [button] of viewButtons)button.disabled=false;
-    for(const button of Object.values(playback))button.disabled=false;slider.disabled=false;showFrame(0);updateStatus();
+    for(const button of Object.values(playback))button.disabled=false;slider.disabled=false;showFrame(0);updateStatus();loadingMask.remove();pose.setAttribute('aria-busy','false');
   }
   if(catalog.length)await select(catalog[0],0);else player.textContent='No videos available.';
   document.addEventListener('visibilitychange',()=>{if(document.hidden){stop();const button=player.querySelector('.playback-controls button:nth-child(3)');if(button)setPlaybackButton(button,false);}});

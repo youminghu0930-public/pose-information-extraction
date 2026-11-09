@@ -18,8 +18,8 @@ export function fitViewDistance(points,target,direction,up,verticalHalfFov,aspec
  const verticalSlope=Math.tan(verticalHalfFov)*margin,horizontalSlope=verticalSlope*aspect;
  let distance=.1;
  for(const point of points){
-  const delta=point.clone().sub(target),depth=delta.dot(forward);
-  distance=Math.max(distance,depth+Math.abs(delta.dot(right))/horizontalSlope,depth+Math.abs(delta.dot(vertical))/verticalSlope);
+  const x=point.x-target.x,y=point.y-target.y,z=point.z-target.z,depth=x*forward.x+y*forward.y+z*forward.z;
+  distance=Math.max(distance,depth+Math.abs(x*right.x+y*right.y+z*right.z)/horizontalSlope,depth+Math.abs(x*vertical.x+y*vertical.y+z*vertical.z)/verticalSlope);
  }
  return distance+.035;
 }
