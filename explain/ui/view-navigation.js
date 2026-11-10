@@ -36,7 +36,7 @@ export function createViewNavigation(onChange=()=>{},runtime={request:fn=>reques
    rotation.premultiply(yaw).premultiply(pitch).normalize();onChange();
   },
   pan(dx,dy){panX+=dx;panY+=dy;onChange();},
-  zoomBy(ratio){const next=zoom*ratio;if(Number.isFinite(next)&&next>0){zoom=next;onChange();}},
+  zoomBy(ratio){const next=zoom*ratio;if(Number.isFinite(next)&&next>0){panX*=ratio;panY*=ratio;zoom=next;onChange();}},
   reset(){animate(true);},dispose:cancel,
  };
 }

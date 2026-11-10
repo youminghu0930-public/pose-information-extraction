@@ -729,3 +729,9 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
  .video-metric-workspace > .video-sidebar.snapshot-pose-selector { border-left:0;border-top:1px solid var(--viewer-border); }
  .video-metric-workspace .snapshot-pose-list { flex:0 1 auto;overflow:auto; }
 }
+
+/* Composite the whole banner scene uniformly, including SVG axes and 3D pies. */
+.hero-banner::after { background:none; }
+/* Original #fafbf8c7 wash leaves 56/255 of the scene visible. */
+.hero .hero-banner { background:#fafbf8; }
+.banner-pose-scene { opacity:calc(56 / 255); }

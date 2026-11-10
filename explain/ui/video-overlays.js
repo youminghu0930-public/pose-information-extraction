@@ -5,7 +5,7 @@ import {createRotationSectors} from './rotation-sector.js';
 import {createPlaneRenderer} from './plane.js';
 import {createMeasurementGuides} from './measurement-guides.js';
 
-export function createVideoMetricOverlays({scene,toWorld,canvas,data,metrics,setPoses,requestRender=()=>{}}){
+export function createVideoMetricOverlays({scene,toWorld,canvas,data,metrics,setPoses,requestRender=()=>{},axisWidthScale=1,prepareState=state=>state}){
  let sampler,keys=[],frame=0,handle,transition;
  const layers=new Map(),levels=new Map();
  const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -24,7 +24,7 @@ export function createVideoMetricOverlays({scene,toWorld,canvas,data,metrics,set
  const clear=()=>{for(const layer of layers.values())layer.dispose();layers.clear();};
  function layerFor(key){
   if(layers.has(key))return layers.get(key);
-  const originalReference=createAxisFrameRenderer(scene,toWorld,2.7,canvas),reference=createAxisFrameRenderer(scene,toWorld,2.7,canvas),target=createAxisFrameRenderer(scene,toWorld,4.5,canvas),plane=createPlaneRenderer(scene,toWorld),sectors=createRotationSectors(scene,toWorld),guides=createMeasurementGuides(toWorld,canvas);
+  const originalReference=createAxisFrameRenderer(scene,toWorld,2.7*axisWidthScale,canvas),reference=createAxisFrameRenderer(scene,toWorld,2.7*axisWidthScale,canvas),target=createAxisFrameRenderer(scene,toWorld,4.5*axisWidthScale,canvas),plane=createPlaneRenderer(scene,toWorld),sectors=createRotationSectors(scene,toWorld),guides=createMeasurementGuides(toWorld,canvas);
   const layer={update(state){originalReference.update(state.originalReferenceAxes);reference.update(state.referenceAxes);target.update(state.torsoAxes);plane.update(state.plane);sectors.update(state.sectors);guides.update(state.guides);},updateView(camera,w,h){originalReference.updateView(camera,w,h);reference.updateView(camera,w,h);target.updateView(camera,w,h);guides.updateView(camera,w,h);},dispose(){originalReference.dispose();reference.dispose();target.dispose();plane.dispose();sectors.dispose();guides.dispose();}};
   layers.set(key,layer);return layer;
  }
@@ -32,8 +32,8 @@ export function createVideoMetricOverlays({scene,toWorld,canvas,data,metrics,set
   clearInactive();
   const visible=[...levels].filter(([,opacity])=>opacity>0);
   if(!sampler||!visible.length){setPoses(0,1);return;}
-  try{for(const {key,state} of uniqueVideoAxes(sampler.sample(frame,visible.map(([key])=>key)),key=>levels.get(key))){
-   const opacity=levels.get(key);
+  try{for(const {key,state:sampledState} of uniqueVideoAxes(sampler.sample(frame,visible.map(([key])=>key)),key=>levels.get(key))){
+   const state=prepareState(sampledState),opacity=levels.get(key);
    layerFor(key).update({...state,originalReferenceAxes:axes(state.originalReferenceAxes,opacity),referenceAxes:axes(state.referenceAxes,opacity),torsoAxes:axes(state.torsoAxes,opacity),plane:fade(state.plane,opacity),sectors:state.sectors?.map(spec=>fade(spec,opacity)),guides:state.guides?.map(spec=>fade(spec,opacity))});
   }setPoses(0,1-.65*Math.max(...visible.map(([,opacity])=>opacity)));}
   catch(error){clear();setPoses(0,1);console.warn('Measurement overlay unavailable for frame',frame,error);}

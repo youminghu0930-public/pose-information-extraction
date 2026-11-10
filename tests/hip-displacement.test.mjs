@@ -47,8 +47,8 @@ test('normalization uses the saved ankle origin and exact reference mean of the 
 test('component growth is simultaneous with numeric change and retains earlier signed components',()=>{
  const {plan}=setup();
  for(const [i,v] of plan.geometry.components.entries()){
-  const mid=at(plan,v.key,.5),guide=mid.guides.find(g=>g.id===v.key);
-  close([mid.values[v.key]],[v.value*.5]);close(guide.to,v.from.map((n,j)=>(n+v.to[j])/2));
+  const mid=at(plan,v.key,.5),guide=mid.guides.find(g=>g.id==='axis-measure-'+v.key);
+  close([mid.values[v.key]],[v.value*.5]);close(guide.to,plan.geometry.referenceRoot.map((n,j)=>n+(v.to[j]-v.from[j])*.5));
   for(const previous of plan.geometry.components.slice(0,i))close([mid.values[previous.key]],[previous.value]);
  }
 });
@@ -93,32 +93,42 @@ test('unit calculation uses solid bones without joints, then aligns the unit bef
  assert.deepEqual(roots.jointHighlights,[]);
 });
 
-test('only the active axis has measurement guides and colored dashed connectors follow the moving point',()=>{
+test('displacement grows from line to rectangle to box with direction-colored edges',()=>{
  const {plan}=setup(),g=plan.geometry;
  for(const [active,component] of g.components.entries())for(const amount of [.25,.5,1]){
   const state=at(plan,component.key,amount),cursor=state.guides.find(v=>v.id==='measurement-cursor').from;
   const fraction=amount===.25?.15625:amount===.5?.5:1;
   close(cursor,component.from.map((v,i)=>v+(component.to[i]-v)*fraction));
-  assert.equal(state.guides.filter(v=>v.id.startsWith('axis-measure-')).length,1);
-  for(const measured of [component]){
-   const solid=state.guides.find(v=>v.id==='axis-measure-'+measured.key),dash=state.guides.find(v=>v.id==='axis-connector-'+measured.key),p=fraction;
-   close(solid.from,g.referenceRoot);close(solid.to,g.referenceRoot.map((v,j)=>v+(measured.to[j]-measured.from[j])*p));
-   close(dash.from,cursor);close(dash.to,solid.to);assert.equal(dash.dashed,true);assert.equal(dash.color,solid.color);
+  const edges=state.guides.filter(v=>v.id.startsWith('axis-measure-')||v.id.startsWith('axis-connector-'));
+  assert.equal(edges.length,[1,4,12][active]);
+  assert.equal(edges.filter(v=>v.kind==='arrow').length,active+1);
+  for(const [i,measured] of g.components.slice(0,active+1).entries()){
+   const arrow=edges.find(v=>v.id==='axis-measure-'+measured.key),p=i<active?1:fraction;
+   close(arrow.from,g.referenceRoot);close(arrow.to,g.referenceRoot.map((v,j)=>v+(measured.to[j]-measured.from[j])*p));
+   const parallel=edges.filter(v=>v.id.startsWith('axis-connector-'+measured.key+'-'));
+   assert.equal(parallel.length,[0,1,3][active]);
+   for(const edge of parallel){close(sub(edge.to,edge.from),sub(arrow.to,arrow.from));assert.equal(edge.color,arrow.color);assert.equal(edge.dashed,true);}
   }
+  const endpoints=new Map();
+  for(const edge of edges)for(const point of [edge.from,edge.to]){
+   const key=JSON.stringify(point.map(v=>Math.round(v*1e7)));endpoints.set(key,(endpoints.get(key)??0)+1);
+  }
+  assert.equal(endpoints.size,[2,4,8][active]);
+  assert.ok([...endpoints.values()].every(degree=>degree===active+1));
  }
  const finish=plan.segments.find(s=>s.id==='finish'),review=plan.sample(finish.start+finish.duration*.9);
- const ids=review.guides.map(v=>v.id);assert.equal(new Set(ids).size,ids.length,'review must not retain stale guides');
+ const ids=review.guides.map(v=>v.id);assert.equal(new Set(ids).size,ids.length);
 });
 
-test('active measurement guides fade in during readiness and out before the next axis',()=>{
+test('measurement cursor stays visible while colors blend between directions',()=>{
  const {plan}=setup();
  for(const key of ['sway','thrust','lift']){
-  const opacity=s=>s.guides.find(v=>v.id==='axis-measure-'+key).opacity;
-  assert.equal(opacity(at(plan,key+'-ready',0)),0);
-  assert.ok(opacity(at(plan,key+'-ready',.5))>0&&opacity(at(plan,key+'-ready',.5))<1);
+  const opacity=s=>s.guides.find(v=>v.id==='measurement-cursor').opacity;
+  assert.equal(opacity(at(plan,key+'-ready',0)),1);
+  assert.equal(opacity(at(plan,key+'-ready',.5)),1);
   assert.equal(opacity(at(plan,key,0)),1);
   const segment=plan.segments.find(s=>s.id===key);
-  assert.ok(opacity(plan.sample(segment.end-.001))<.001);
+  assert.equal(opacity(plan.sample(segment.end-.001)),1);
  }
 });
 
@@ -149,4 +159,18 @@ test('gray dashed remaining-displacement connector follows the cursor instead of
   assert.ok(connectors.length<=1);
   for(const connector of connectors){assert.equal(connector.dashed,true);close(connector.from,state.guides.find(v=>v.id==='measurement-cursor').from);}
  }
+});
+
+test('translation dot blends direction colors and ends in the selected root color',()=>{
+ const {plan}=setup(),dot=state=>state.guides.find(guide=>guide.id==='measurement-cursor');
+ for(const [before,after] of [['sway','thrust'],['thrust','lift']]){
+  const end=dot(at(plan,before,1)),start=dot(at(plan,after+'-ready',0)),middle=dot(at(plan,after+'-ready',.5)),ready=dot(at(plan,after+'-ready',1));
+  close(end.from,start.from);assert.equal(end.color,start.color);
+  assert.notEqual(middle.color,start.color);assert.notEqual(middle.color,ready.color);
+  assert.equal(middle.opacity,1);
+ }
+ const lift=plan.segments.find(segment=>segment.id==='lift');
+ const finish=dot(plan.sample(lift.end-.001));assert.equal(finish.color,'#168568');
+ const review=plan.segments.find(segment=>segment.id==='finish');
+ assert.equal(dot(plan.sample(review.start)).color,'#168568');
 });

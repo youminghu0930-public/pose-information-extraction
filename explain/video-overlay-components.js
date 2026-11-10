@@ -2,7 +2,7 @@
 // final target remains independent of the thin solid source/destination layer.
 // Stronger layers own shared components so deselecting another cannot fade them.
 export function uniqueVideoAxes(samples,opacityFor=()=>1){
- const seen=new Set(),result=new Map();
+ const seen=new Set(),guideIds=new Set(),result=new Map();
  const ordered=[...samples].sort((a,b)=>opacityFor(b.key)-opacityFor(a.key));
  for(const {key,state} of ordered){
   const next={...state};
@@ -17,6 +17,10 @@ export function uniqueVideoAxes(samples,opacityFor=()=>1){
    }
    next[field]=copy;
   }
+  // Root markers and the animated corner are shared across direction groups.
+  if(state.guides)next.guides=state.guides.filter(guide=>{
+   if(guideIds.has(guide.id))return false;guideIds.add(guide.id);return true;
+  });
   result.set(key,next);
  }
  return samples.map(({key})=>({key,state:result.get(key)}));

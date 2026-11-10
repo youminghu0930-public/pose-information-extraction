@@ -83,3 +83,21 @@ test('side tilt keeps solid source and destination plus the translucent final ta
   assert.ok(destination.to.every((value,i)=>Math.abs(value-target.to[i])<1e-6));
  }
 });
+
+test('video translation selections retain joint centers without connectors or axis dots',async()=>{
+ const {uniqueVideoAxes}=await import('../explain/video-overlay-components.js');
+ const sampler=createStaticMeasurementSampler(read('3d_results/00.json'),read('metrics/00.json'),{type:'position',subtype:'hip_sway_thrust_lift'});
+ for(const frame of [100,300,500]){
+  const samples=sampler.sample(frame,['sway','thrust','lift']);
+  for(const {key,state} of samples){
+   const edges=state.guides.filter(guide=>guide.id.startsWith('axis-'));
+   assert.equal(edges.length,1);assert.equal(edges.filter(guide=>guide.kind==='arrow').length,1);
+   assert.ok(edges.every(guide=>guide.id==='axis-measure-'+key));
+  }
+  const guides=uniqueVideoAxes(samples).flatMap(({state})=>state.guides);
+  assert.equal(guides.filter(guide=>guide.id.startsWith('axis-')).length,3);
+  assert.equal(guides.filter(guide=>guide.id==='measurement-cursor').length,0);
+  assert.equal(guides.filter(guide=>guide.id==='reference-root').length,1);
+  assert.equal(guides.filter(guide=>guide.id==='selected-root').length,1);
+ }
+});

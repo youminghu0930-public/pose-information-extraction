@@ -15,7 +15,13 @@ export function createStaticMeasurementSampler(data,metrics,entry){
   }
   return keys.map(key=>{
    const segment=plan.segments.find(s=>s.id===key);if(!segment)throw new Error('Unknown measurement');
-   const state=plan.sample(segment.start+(segment.motionDuration??segment.duration));
+   let state=plan.sample(segment.start+(segment.motionDuration??segment.duration));
+   if(entry.subtype==='hip_sway_thrust_lift'){
+    // Video shows completed axis arrows and joint centers, without construction guides.
+    const final=plan.segments.find(segment=>segment.id==='lift');
+    state=plan.sample(final.start+(final.motionDuration??final.duration));
+    state={...state,active:key,guides:state.guides.filter(guide=>guide.id==='axis-measure-'+key||guide.id==='reference-root'||guide.id==='selected-root')};
+   }
    if(['torso_turn_bend_tilt','torso_turn_bend_tilt_by_shoulder'].includes(entry.subtype)){
     // The animated reference has reached the destination at this sample.
     // Retain the frame before this intrinsic rotation as the angle's baseline.

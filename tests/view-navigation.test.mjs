@@ -21,7 +21,7 @@ test('resume returns orientation smoothly before releasing playback, preserving 
  const rotated=direction();nav.setPlayback(true,true);assert.equal(nav.returning,true);
  step(375);assert.equal(nav.returning,true);assert.ok(direction().distanceTo(rotated)>.01);assert.ok(direction().distanceTo(new Vector3(0,0,1))>.01);
  step(375);assert.equal(nav.returning,false);assert.ok(direction().distanceTo(new Vector3(0,0,1))<1e-10);
- assert.equal(nav.panX,1500);assert.equal(nav.panY,-900);assert.equal(nav.zoom,20);
+ assert.equal(nav.panX,30000);assert.equal(nav.panY,-18000);assert.equal(nav.zoom,20);
 });
 test('pausing interrupts the return; reset restores the view without changing playback state',()=>{
  const {nav,step,direction}=setup();nav.setPlayback(true,false);nav.rotate(100,20);nav.setPlayback(true,true);step(200);
@@ -37,4 +37,13 @@ test('review orbit preserves distance around an explicit intersection without mo
  assert.ok(nav.orbitPoint(pivot,pivot).distanceTo(pivot)<1e-10);
  assert.ok(Math.abs(nav.orbitPoint(camera,pivot).distanceTo(pivot)-camera.distanceTo(pivot))<1e-10);
  assert.ok(nav.orbitPoint(camera,pivot).distanceTo(camera)>.1);
+});
+
+test('zoom scales around the viewport center after pan and is reversible',()=>{
+ const {nav,direction}=setup();nav.rotate(30,20);nav.pan(120,-75);const before=direction();
+ nav.zoomBy(2);assert.equal(nav.zoom,2);assert.equal(nav.panX,240);assert.equal(nav.panY,-150);
+ // Screen positions relative to the window center all scale by the same ratio.
+ assert.equal(40*nav.zoom+nav.panX,2*(40+120));
+ nav.zoomBy(.5);assert.equal(nav.zoom,1);assert.equal(nav.panX,120);assert.equal(nav.panY,-75);
+ assert.deepEqual(direction(),before);
 });

@@ -1,3 +1,4 @@
+import {createBannerOverlays} from './explain/ui/banner-overlays.js';
 import {registerViewerCapture} from './explain/ui/viewer-transition.js';
 import {createVideoMetricOverlays} from './explain/ui/video-overlays.js';
 import {rotationBoundsCenter} from './snapshot-framing.js';
@@ -18,10 +19,13 @@ export async function mountSnapshots(root,options={}){
  const {mountMetricSnapshots}=await import('./explain/ui/snapshots.js');
  return mountMetricSnapshots(root,{...options,mountScene:mountPoseScene});
 }
-export async function mountPoseScene(card, id, entry, { showCameras = false, autoPlay = true, cameraVideos = {}, rawDetections = {}, bannerMode = false, snapshotMetrics, videoMetrics, calibratedViews = false } = {}) {
+export async function mountPoseScene(card, id, entry, { showCameras = false, autoPlay = true, cameraVideos = {}, rawDetections = {}, bannerMode = false, bannerMetrics, snapshotMetrics, videoMetrics, calibratedViews = false } = {}) {
   const poseData = await json(`materials/data/3d_results/${encodeURIComponent(id)}.json`);
   const {reconstruction: frames, calibration, joints: jointNames} = poseData;
   const {names,edges,indexes,clubEdges} = poseStructure(jointNames);
+  // Visibility only: keep club samples in every bounds, center, scale and
+  // camera calculation so hiding the club never changes navigation/framing.
+  const isClub=index=>names[index]?.startsWith('golf_club_');
   const snapshot = snapshotMetrics ? resolveSnapshot(entry,snapshotMetrics,frames.length) : null;
   const referenceFrame = snapshot?.referenceFrame;
   const configuredRange = entry.range ?? entry.ranage ?? [0, frames.length-1];
@@ -122,12 +126,13 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
       if(length<=1e-8)continue;
       const mesh=surface.bone(referenceMaterials.center);
       surface.placeBone(mesh,from,to);
+      mesh.visible=!isClub(a)&&!isClub(b);
       referenceGroup.add(mesh);referenceBones.push({a,b,mesh});
     }
     names.forEach((name,index)=>{
       if(!valid(referencePose[index]))return;
       const mesh=surface.joint(referenceMaterials[side(name)]);
-      surface.placeJoint(mesh,vector(referencePose[index]));referenceDots[index]=mesh;referenceGroup.add(mesh);
+      surface.placeJoint(mesh,vector(referencePose[index]));mesh.visible=!isClub(index);referenceDots[index]=mesh;referenceGroup.add(mesh);
     });
 
     referenceGroup.traverse(object=>{if(object.isMesh)setupPoseShadow(object);});
@@ -216,7 +221,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
         mesh.setColorAt(i,new THREE.Color().setHSL((1-relativeSpeed)*2/3,1,.5));
       });
       mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.needsUpdate=true;mesh.computeBoundingSphere();
-      mesh.receiveShadow=true;scene.add(mesh);
+      mesh.receiveShadow=true;mesh.visible=!name.startsWith('golf_club_');scene.add(mesh);
       trails.push({mesh,frames:items.map(item=>item.frame)});
     }
   });
@@ -572,13 +577,13 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     grid.material.transparent=false;grid.material.opacity=1;grid.material.depthWrite=true;
     const pose=frames[frame];
     for(const {a,b,mesh} of bones){
-      mesh.visible=selectedPoseOpacity>.001&&valid(pose[a])&&valid(pose[b]);if(!mesh.visible)continue;
+      mesh.visible=!isClub(a)&&!isClub(b)&&selectedPoseOpacity>.001&&valid(pose[a])&&valid(pose[b]);if(!mesh.visible)continue;
       const from=vector(pose[a]),to=vector(pose[b]),delta=to.clone().sub(from),length=delta.length();
       mesh.visible=length>1e-8;if(!mesh.visible)continue;
       if(bannerMode){mesh.position.copy(from).add(to).multiplyScalar(.5);mesh.quaternion.setFromUnitVectors(axis,delta.normalize());mesh.scale.set(boneRadius,length,boneRadius);}
       else surface.placeBone(mesh,from,to);
     }
-    dots.forEach((mesh,i)=>{if(!mesh)return;mesh.visible=selectedPoseOpacity>.001&&valid(pose[i]);if(mesh.visible){if(bannerMode)mesh.position.copy(vector(pose[i]));else surface.placeJoint(mesh,vector(pose[i]));}});
+    dots.forEach((mesh,i)=>{if(!mesh)return;mesh.visible=!isClub(i)&&selectedPoseOpacity>.001&&valid(pose[i]);if(mesh.visible){if(bannerMode)mesh.position.copy(vector(pose[i]));else surface.placeJoint(mesh,vector(pose[i]));}});
     for(const trail of trails){
       let low=0,high=trail.frames.length;
       while(low<high){const middle=(low+high)>>>1;if(trail.frames[middle]<=frame)low=middle+1;else high=middle;}
@@ -588,7 +593,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     }
     for(const past of clubHistory){
       const age=frame-past.frame;
-      past.mesh.visible=age>0&&age<historyWindow;
+      past.mesh.visible=false; // Club history is hidden without changing its bounds inputs.
       if(past.mesh.visible)past.mesh.material.opacity=.75*(1-age/historyWindow);
     }
     camera.updateMatrixWorld();
@@ -648,7 +653,17 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     canvas.dataset.frame=String(frame);
     renderer.render(scene,camera);snapshotOverlayView?.(camera,w,h);
   }
-  const clampZoom=value=>Math.max(.4,Math.min(4,value));
+  // Match snapshot navigation: metric-video wheel and pinch zoom have no
+  // artificial 4× ceiling or zoom-out floor, accepting finite positive values.
+  const clampZoom=value=>videoMetrics
+    ? (Number.isFinite(value)&&value>0?value:zoom)
+    : Math.max(.4,Math.min(4,value));
+  const zoomAroundWindow=ratio=>{
+    const next=clampZoom(zoom*ratio),applied=next/zoom;
+    // Scale the projection offset with zoom so its fixed point is the
+    // viewport center, even after a manual pan.
+    panX*=applied;panY*=applied;zoom=next;
+  };
   if(snapshot){
     mediaCleanup.push(mountViewInput(canvas,ratio=>navigation.zoomBy(ratio),(dx,dy)=>navigation.pan(dx,dy),(dx,dy)=>navigation.rotate(dx,dy),()=>navigation.canRotate));
   }else{
@@ -666,7 +681,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     const dx=e.clientX-previous.x,dy=e.clientY-previous.y;
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,button:previous.button});
     if(pointers.size===2){
-      const after=pinchDistance();if(before>0)zoom=clampZoom(zoom*after/before);
+      const after=pinchDistance();if(before>0)zoomAroundWindow(after/before);
       if(enablePan){panX+=dx/2;panY+=dy/2;}
     }
     else if(pointers.size===1){
@@ -688,7 +703,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     e.preventDefault();
     if(cameraFlight)return;
     // Trackpad pinch arrives as a Ctrl+wheel gesture in supporting browsers.
-    zoom=clampZoom(zoom*Math.exp(-e.deltaY*(e.ctrlKey ? .01 : .001)));draw();
+    zoomAroundWindow(Math.exp(-e.deltaY*(e.ctrlKey ? .01 : .001)));draw();
   },{passive:false});
   }
   const resizeObserver=new ResizeObserver(draw);resizeObserver.observe(canvas); draw();
@@ -733,6 +748,10 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     setMeasurementSelection(keys){metricOverlays?.setSelection(keys);draw();},
     dispose(){cancelAnimationFrame(flightHandle);mediaCleanup.forEach(cleanup=>cleanup());disposed=true;cancelAnimationFrame(animationHandle);resizeObserver.disconnect();renderer.dispose();const geometries=new Set(),materials=new Set();scene.traverse(object=>{if(object.geometry)geometries.add(object.geometry);if(object.material)materials.add(object.material);});geometries.forEach(g=>g.dispose());materials.forEach(m=>{m.map?.dispose();m.dispose();});},
   };
+  if(bannerMode&&bannerMetrics){
+    metricOverlays=createBannerOverlays({scene,toWorld:vector,canvas,data:poseData,metrics:bannerMetrics,requestRender:draw});
+    snapshotOverlayView=metricOverlays.updateView;mediaCleanup.push(()=>metricOverlays.dispose());
+  }
   if(videoMetrics){
     metricOverlays=createVideoMetricOverlays({scene,toWorld:vector,canvas,data:poseData,metrics:videoMetrics,requestRender:draw,setPoses:setSnapshotPoseOpacity});
     snapshotOverlayView=metricOverlays.updateView;mediaCleanup.push(()=>metricOverlays.dispose());

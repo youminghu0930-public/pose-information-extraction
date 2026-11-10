@@ -1,6 +1,6 @@
+import {axisColors,blendColors} from '../palette.js';
 import {separateReviewTransition} from './review-transition.js';
 import {add,sub,mul,length} from '../math.js';
-import {axisColors} from '../palette.js';
 import {openingSegments,sampleOpening} from './opening.js';
 import {frameDefinitions,completedAxes,mix} from './axis-frame.js';
 import {referenceOverview,cameraFocusBounds,cameraOrientation,uprightCameraBetween,uprightCamera} from './camera.js';
@@ -60,15 +60,17 @@ export function createHipDisplacementChoreography(model){
    state.guides.push(guide('unit-label',to,null,'#657168',{kind:'point',radius:0,label:'1 unit',opacity}));
   }
  }
- function components(state,key,amount,guideOpacity=0){
+ function components(state,key,amount,guideOpacity=1,finishColor=0){
   const active=order.indexOf(key);state.active=key;state.values={sway:0,thrust:0,lift:0};
   const current=g.components[active],cursor=mix(current.from,current.to,amount);
   state.guides.push(guide('displacement',cursor,g.selectedRoot,'#8b9198',{kind:'line',width:1.7,dashed:true}));
   g.components.forEach((v,i)=>{
    const p=i<active?1:i===active?amount:0;state.values[v.key]=v.value*p;
-   if(p>0)state.guides.push(guide(v.key,v.from,mix(v.from,v.to,p),axisColors[v.axis],{width:i===active?4.5:3.4}));
   });
-  state.guides.push(...displacementAxisGuides(g.referenceRoot,g.components,active,amount,guideOpacity));
+  const guides=displacementAxisGuides(g.referenceRoot,g.components,active,amount,guideOpacity);
+  const dot=guides.find(guide=>guide.id==='measurement-cursor');
+  if(finishColor>0)dot.color=blendColors(axisColors.y,'#168568',finishColor);
+  state.guides.push(...guides);
  }
  function sampleState(time){
   const s=segments.find(s=>time<s.end)??segments.at(-1),p=ease(clamp((time-s.start)/Math.max(1e-9,s.motionDuration??s.duration))),progress=clamp((time-s.start)/Math.max(1e-9,s.duration));
@@ -101,15 +103,15 @@ export function createHipDisplacementChoreography(model){
   if(s.id==='displacement'){
    state.guides.push(guide('displacement',g.referenceRoot,mix(g.referenceRoot,g.selectedRoot,p),'#8b9198',{kind:'line',width:1.7,dashed:true}));return state;
   }
-  for(const key of order)if(s.id===key+'-ready'||s.id===key){const fade=s.id===key?1-ease(clamp((time-s.start-s.motionDuration)/(s.duration-s.motionDuration))):p;components(state,key,s.id===key?p:0,fade);return state;}
-  components(state,'lift',1);
+  for(const key of order)if(s.id===key+'-ready'||s.id===key){const fade=s.id===key?1:p;const endColor=key==='lift'&&s.id===key?ease(clamp((time-s.start-s.motionDuration)/(s.duration-s.motionDuration))):0;components(state,key,s.id===key?p:0,fade,endColor);return state;}
+  components(state,'lift',1,1,1);
   if(s.id==='finish'){
    const timing=reviewTiming(progress,s.duration);if(timing.holding)return state;
    const q=timing.progress;
    state.camera=between(hipView,hipView,1);state.pairFocus={points:measurementPoints,amount:1};
    state.guides=state.guides.filter(v=>!order.includes(v.id)&&!v.id.startsWith('axis-measure-')&&!v.id.startsWith('axis-connector-')&&v.id!=='measurement-cursor'&&v.id!=='displacement');
    if(q<.22){state.values={sway:0,thrust:0,lift:0};state.guides=state.guides.map(v=>v.id==='displacement'?{...v,opacity:.25*(1-q/.22)}:v);}
-   else{const position=(q-.22)/.78*3,i=Math.min(2,Math.floor(position)),amount=ease(clamp((position-i-.24)/.76));const phase=position-i,fade=ease(clamp(phase/.18))*(1-ease(clamp((phase-.85)/.15)));components(state,order[i],amount,fade);}
+   else{const position=(q-.22)/.78*3,i=Math.min(2,Math.floor(position)),amount=ease(clamp((position-i-.24)/.76));const phase=position-i,fade=ease(clamp(phase/.18));components(state,order[i],amount,fade,i===2?ease(clamp((phase-.9)/.1)):0);}
   }
   if(s.id==='reset'){
    state.guides=state.guides.map(v=>({...v,opacity:(v.opacity??1)*(1-p)}));state.referenceAxes.opacity*=1-p;
