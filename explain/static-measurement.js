@@ -16,6 +16,11 @@ export function createStaticMeasurementSampler(data,metrics,entry){
   return keys.map(key=>{
    const segment=plan.segments.find(s=>s.id===key);if(!segment)throw new Error('Unknown measurement');
    const state=plan.sample(segment.start+(segment.motionDuration??segment.duration));
+   if(['torso_turn_bend_tilt','torso_turn_bend_tilt_by_shoulder'].includes(entry.subtype)){
+    // The animated reference has reached the destination at this sample.
+    // Retain the frame before this intrinsic rotation as the angle's baseline.
+    state.originalReferenceAxes=plan.sample(segment.start).referenceAxes;
+   }
    for(const [axis,colorAxis] of Object.entries(plan.targetAxisColors??{}))if(state.torsoAxes?.[axis])state.torsoAxes[axis].colorAxis=colorAxis;
    return {key,state};
   });

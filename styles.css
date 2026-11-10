@@ -709,3 +709,23 @@ header[data-expanded=false] { width: 0; padding-inline: 0; border: 0; }
  .pose-snapshots .pose-snapshot.metric-snapshot { padding:12px; }
  .pose-snapshots .metric-snapshot .snapshot-explain-layout { grid-template-rows:350px 54px; }
 }
+
+/* Right-side y ticks replace the legend; plot and timeline share endpoints. */
+.video-metric-workspace .video-plot-area { left:0;right:0; }
+.video-metric-workspace .video-plot-chart { overflow:visible; }
+.video-metric-workspace .video-plot-y-labels { position:relative;grid-column:2;align-self:stretch;left:auto;width:auto;top:auto;bottom:auto;margin:8px 0;text-align:left; }
+.video-metric-workspace .video-plot-y-labels span { left:0;right:auto; }
+.video-plot-tooltip { position:absolute;bottom:calc(100% + 8px);z-index:15;width:max-content;max-width:260px;padding:8px 10px;border:1px solid var(--viewer-border);border-radius:6px;background:var(--viewer-card);box-shadow:0 3px 12px #253c3720;font:11px/1.6 system-ui;pointer-events:none; }
+.video-plot-tooltip[hidden] { display:none; }
+
+/* Video panels share the snapshot navigator surfaces, headings and options. */
+.video-metric-workspace > .snapshot-metric-navigator { border:0;border-right:1px solid var(--viewer-border);border-radius:0; }
+.video-metric-workspace .snapshot-metric-list { margin:0;padding:10px;border:0;border-radius:0;background:transparent; }
+.video-metric-workspace > .video-sidebar.snapshot-pose-selector { padding:0;border:0;border-left:1px solid var(--viewer-border);border-radius:0;background:var(--viewer-card); }
+.project-videos .video-sidebar .snapshot-navigator-title { margin:0;padding:16px 12px;font-size:15px;font-weight:650;line-height:normal; }
+.video-metric-workspace .snapshot-pose-list { min-height:0;flex:1;max-height:none;scrollbar-gutter:stable; }
+@media(max-width:760px) {
+ .video-metric-workspace > .snapshot-metric-navigator { border-right:0;border-bottom:1px solid var(--viewer-border); }
+ .video-metric-workspace > .video-sidebar.snapshot-pose-selector { border-left:0;border-top:1px solid var(--viewer-border); }
+ .video-metric-workspace .snapshot-pose-list { flex:0 1 auto;overflow:auto; }
+}

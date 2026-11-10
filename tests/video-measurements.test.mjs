@@ -47,3 +47,39 @@ test('combined measurement lines use one tick scale and identical value position
  assert.ok(first.startsWith('M0.00,40.00'));assert.ok(second.includes('L500.00,40.00'));
  const empty=sharedMeasurementScale([{values:[null,null]}]);assert.ok(empty.high>empty.low);assert.ok(empty.ticks.length>1);
 });
+
+test('torso video angles retain their starting reference and share coincident arrows',async()=>{
+ const {uniqueVideoAxes}=await import('../explain/video-overlay-components.js');
+ const sampler=createStaticMeasurementSampler(read('3d_results/00.json'),read('metrics/00.json'),{type:'kinematic',subtype:'torso_turn_bend_tilt'});
+ const samples=sampler.sample(300,['turn','bend','tilt']);
+ for(const {state} of samples){
+  assert.ok(state.originalReferenceAxes);
+  for(const sector of state.sectors){
+   const arrow=state.originalReferenceAxes[sector.direction];
+   const direction=arrow.to.map((value,i)=>value-arrow.from[i]),length=Math.hypot(...direction);
+   assert.ok(direction.every((value,i)=>Math.abs(value/length-sector.from[i])<1e-6));
+  }
+ }
+ const seen=new Set();let count=0;
+ for(const {state} of uniqueVideoAxes(samples))for(const field of ['originalReferenceAxes','referenceAxes','torsoAxes'])for(const axis of ['x','y','z']){
+  const arrow=state[field]?.[axis];if(!arrow)continue;count++;
+  const signature=(field==='torsoAxes'?'target':'measurement')+JSON.stringify([arrow.from,arrow.to].map(point=>point.map(value=>Math.round(value*1e7)/1e7)));
+  assert.ok(!seen.has(signature),'shared arrow rendered more than once');seen.add(signature);
+ }
+ assert.ok(count<27,'coincident axes should be shared');
+ assert.ok(samples.every(({state})=>state.originalReferenceAxes.x),'deduplication must not mutate sampler results');
+});
+
+test('side tilt keeps solid source and destination plus the translucent final target',async()=>{
+ const {uniqueVideoAxes}=await import('../explain/video-overlay-components.js');
+ const sampler=createStaticMeasurementSampler(read('3d_results/00.json'),read('metrics/00.json'),{type:'kinematic',subtype:'torso_turn_bend_tilt'});
+ const [{state}]=uniqueVideoAxes(sampler.sample(300,['tilt']));
+ for(const axis of ['x','y','z'])assert.ok(state.torsoAxes[axis],`final target ${axis} must remain`);
+ assert.equal(state.torsoAxes.opacity,.42);
+ assert.equal(state.originalReferenceAxes.opacity,1);assert.equal(state.referenceAxes.opacity,1);
+ for(const axis of ['x','y']){
+  assert.ok(state.originalReferenceAxes[axis]);assert.ok(state.referenceAxes[axis]);
+  const destination=state.referenceAxes[axis],target=state.torsoAxes[axis];
+  assert.ok(destination.to.every((value,i)=>Math.abs(value-target.to[i])<1e-6));
+ }
+});

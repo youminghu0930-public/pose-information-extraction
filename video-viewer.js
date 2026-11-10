@@ -34,14 +34,14 @@ export async function mountVideos(root){
     {gesture:'Pan',action:'Right-drag or drag with two fingers.'},
     {gesture:'Zoom',action:'Scroll or pinch.'},
     {gesture:'Playback',action:'Press Space to play or pause. Use ← / → to step frames; hold to repeat.'},
-    {gesture:'Measurements',action:'Select a measurement to show its geometry. Use the plot legend to show or hide curves.'},
+    {gesture:'Measurements',action:'Select measurement cards to show their geometry and curves. Hover over the plot to read visible values.'},
   ],'section-info'));root.append(heading);
   const shell=make('div',undefined,'video-workspace video-metric-workspace');
-  const player=make('div',undefined,'reconstruction-player comparison-player'),sidebar=make('aside',undefined,'video-sidebar');
+  const player=make('div',undefined,'reconstruction-player comparison-player'),sidebar=make('aside',undefined,'video-sidebar snapshot-pose-selector');
   player.tabIndex=0;player.setAttribute('aria-label','Video reconstruction player');
-  const sidebarHeading=make('div',undefined,'sidebar-heading'),videoCount=make('span');sidebarHeading.append(make('h4','Swing videos'),videoCount);sidebar.append(sidebarHeading);
+  sidebar.setAttribute('aria-label','Video poses');sidebar.append(make('h4','Choose a pose','snapshot-navigator-title'));
   const loadingMetrics=make('aside',undefined,'snapshot-metric-navigator');loadingMetrics.setAttribute('aria-label','Video metrics');loadingMetrics.append(make('h4','Choose a metric','snapshot-navigator-title'));shell.append(loadingMetrics);
-  const list=make('div',undefined,'video-name-list video-list');list.append(make('p','Loading video list…','section-note'));sidebar.append(list);shell.append(player,sidebar);root.append(shell);
+  const list=make('div',undefined,'snapshot-pose-list');list.append(make('p','Loading video list…','section-note'));sidebar.append(list);shell.append(player,sidebar);root.append(shell);
   const placeholder=make('div','Loading videos…','video-loading-placeholder');placeholder.setAttribute('role','status');player.append(placeholder);
   const [catalog,credits,configResponse]=await Promise.all([json('materials/data/videos.json'),json('materials/data/credits.json'),fetch('materials/data/snapshot.json')]);
   const {entries:metricEntries}=parseSnapshotConfiguration(await configResponse.text());
@@ -65,9 +65,9 @@ export async function mountVideos(root){
   function stop(){++playbackVersion;playing=false;cancelAnimationFrame(raf);if(callbackVideo&&videoCallback!==undefined)callbackVideo.cancelVideoFrameCallback(videoCallback);videoCallback=undefined;media.forEach(video=>{video.pause();video.playbackRate=1;});}
   let selectedId,refreshing=false;
   function renderList(){
-    list.replaceChildren();buttons.length=0;videoCount.textContent=`${catalog.length} videos`;
+    list.replaceChildren();buttons.length=0;
     catalog.forEach((clip,i)=>{
-      const button=make('button',undefined,'video-item');const caption=make('span');caption.append(make('strong',clip.name));button.append(caption);button.type='button';button.setAttribute('aria-pressed',String(clip.id===selectedId));button.onclick=()=>select(clip,i);list.append(button);buttons.push(button);
+      const button=make('button',undefined,'snapshot-metric-option');const caption=make('span',clip.name,'snapshot-option-title');button.append(caption);button.type='button';button.setAttribute('aria-pressed',String(clip.id===selectedId));button.onclick=()=>select(clip,i);list.append(button);buttons.push(button);
     });
   }
   renderList();
