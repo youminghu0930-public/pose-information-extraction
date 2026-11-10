@@ -1,3 +1,4 @@
+import {registerViewerCapture} from './explain/ui/viewer-transition.js';
 import {createVideoMetricOverlays} from './explain/ui/video-overlays.js';
 import {rotationBoundsCenter} from './snapshot-framing.js';
 import {updatePoseShadowStrength} from './pose-shadow.js';
@@ -66,6 +67,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#f4f7f0');
   const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  registerViewerCapture(canvas,()=>renderer.render(scene,camera));
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, autoPlay ? 2 : 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -670,7 +672,12 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     else if(pointers.size===1){
       if(enablePan&&previous.button===2){panX+=dx;panY+=dy;}
       else if(selectedView==='free-view'){yaw-=dx*.01;pitch=Math.max(-1.4,Math.min(1.4,pitch+dy*.01));}
-      else{const sensitivity=.0008/Math.max(1,zoom);presetYaw-=dx*sensitivity;presetPitch=Math.max(-1.4,Math.min(1.4,presetPitch-dy*sensitivity));}
+      else{
+        // Metric videos have no source-video overlay to keep precisely aligned:
+        // use Free-view's rotation rate, independent of zoom.
+        const sensitivity=videoMetrics ? .01 : .0008/Math.max(1,zoom);
+        presetYaw-=dx*sensitivity;presetPitch=Math.max(-1.4,Math.min(1.4,presetPitch-dy*sensitivity));
+      }
     }
     draw();
   };
@@ -727,7 +734,7 @@ export async function mountPoseScene(card, id, entry, { showCameras = false, aut
     dispose(){cancelAnimationFrame(flightHandle);mediaCleanup.forEach(cleanup=>cleanup());disposed=true;cancelAnimationFrame(animationHandle);resizeObserver.disconnect();renderer.dispose();const geometries=new Set(),materials=new Set();scene.traverse(object=>{if(object.geometry)geometries.add(object.geometry);if(object.material)materials.add(object.material);});geometries.forEach(g=>g.dispose());materials.forEach(m=>{m.map?.dispose();m.dispose();});},
   };
   if(videoMetrics){
-    metricOverlays=createVideoMetricOverlays({scene,toWorld:vector,canvas,data:poseData,metrics:videoMetrics,setPoses:setSnapshotPoseOpacity});
+    metricOverlays=createVideoMetricOverlays({scene,toWorld:vector,canvas,data:poseData,metrics:videoMetrics,requestRender:draw,setPoses:setSnapshotPoseOpacity});
     snapshotOverlayView=metricOverlays.updateView;mediaCleanup.push(()=>metricOverlays.dispose());
   }
   if(snapshot){

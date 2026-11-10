@@ -8,9 +8,9 @@ export function createVideoMeasurements({entry,metrics,frameCount,onSelection,se
  for(const channel of channels){
   const button=make('button');button.type='button';button.style.setProperty('--metric-axis-color',channel.color);button.setAttribute('aria-pressed',String(selected.has(channel.key)));button.title=`Show ${channel.label.toLowerCase()} reference and measurement`;
   const value=make('strong');button.append(make('span',channel.label),value);measurements.append(button);outputs.set(channel.key,value);
-  button.onclick=()=>{if(selected.has(channel.key))selected.delete(channel.key);else selected.add(channel.key);button.setAttribute('aria-pressed',String(selected.has(channel.key)));onSelection([...selected]);};
+  button.onclick=()=>{if(selected.has(channel.key))selected.delete(channel.key);else selected.add(channel.key);button.setAttribute('aria-pressed',String(selected.has(channel.key)));plot.setSelection([...selected]);onSelection([...selected]);};
  }
- const plot=createMeasurementPlot(channels,frameCount);
+ const plot=createMeasurementPlot(channels,frameCount);plot.setSelection(selectedKeys);
  return {measurements,plot:plot.root,update(frame){
   for(const channel of channels){const value=channel.values[frame];outputs.get(channel.key).textContent=Number.isFinite(value)?value.toFixed(2)+channel.unit:'—';}
   plot.update(frame);

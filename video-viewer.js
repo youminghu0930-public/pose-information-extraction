@@ -1,3 +1,4 @@
+import {preserveViewer} from './explain/ui/viewer-transition.js';
 import {createViewerInfo} from './explain/ui/viewer-info.js';
 import {parseSnapshotConfiguration} from './snapshot-config.js';
 import {createMetricNavigator} from './explain/ui/navigator.js';
@@ -85,6 +86,7 @@ export async function mountVideos(root){
   window.addEventListener('focus',refreshCatalog);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCatalog();});
   async function select(clip,index){
+    const transition=preserveViewer(content,{duration:320,fadeIncoming:true});
     selectedId=clip.id;
     const request=++version;shortcutReady=false;frameKeys.clear();seekers.forEach(seeker=>seeker.reset());seekers=[];selectionAbort?.abort();selectionAbort=new AbortController();const signal=selectionAbort.signal;stop();controller?.dispose();controller=undefined;media.forEach(v=>{v.removeAttribute('src');v.load();});media=[];
     frame=0;buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));
@@ -109,7 +111,7 @@ export async function mountVideos(root){
     const meta=make('div',undefined,'player-meta');
     const counter=make('output',`Frame 1 / ${clip.frames}`);meta.append(counter,status);
     const controlRow=make('div',undefined,'player-control-row');controlRow.append(meta,controls);
-    content.append(views,pose,slider,controlRow);
+    content.append(views,pose,slider,controlRow);transition.mount?.();
     const creditValue=credits[clip.id]??credits[clip.id.split('-')[0]];
     if(creditValue){
       try{
@@ -145,16 +147,20 @@ export async function mountVideos(root){
     try{[sync,metrics]=await Promise.all([json(clip.sync),json(`materials/data/metrics/${encodeURIComponent(clip.id)}.json`)]);
       if(request!==version)return;
       readyController=await mountPoseScene(pose,clip.id,{range:[0,clip.frames-1],fps:clip.fps,joints:['golf_club_head']},{showCameras:false,calibratedViews:true,videoMetrics:metrics,autoPlay:false,cameraVideos:Object.fromEntries(clip.views.map((view,i)=>[view.name,media[i]]))});}
-    catch(error){if(request===version){console.error(error);clearInterval(statusTimer);status.textContent='The reconstruction could not be loaded. Select another swing or reload to retry.';loadingMask.remove();pose.setAttribute('aria-busy','false');}return;}
+    catch(error){if(request===version){console.error(error);clearInterval(statusTimer);status.textContent='The reconstruction could not be loaded. Select another swing or reload to retry.';loadingMask.remove();pose.setAttribute('aria-busy','false');transition();}return;}
     if(request!==version){readyController.dispose();return;}controller=readyController;reconstructionReady=true;controller.setView(activeView,{animate:false});
 
     refreshMetric=()=>{
       if(request!==version)return;
+      // Capture the complete outgoing metric before replacing its geometry/UI.
+      // A shared dissolve keeps the plot, values and scene synchronized.
+      const metricTransition=measurementView?preserveViewer(content):undefined;
       const [,entry]=metricEntries[selectedMetric];
       measurementView?.measurements.remove();measurementView?.plot.remove();
       measurementView=createVideoMeasurements({entry,metrics,frameCount:clip.frames,fps:clip.fps,selectedKeys:overlayKeys,onSelection:keys=>{overlayKeys=keys;controller?.setMeasurementSelection(keys);}});
       pose.after(measurementView.measurements,measurementView.plot);
       controller.setMetricSelection(entry,overlayKeys);measurementView.update(frame);
+      metricTransition?.mount?.();metricTransition?.();
     };
     refreshMetric();
     const times=clip.views.map(view=>Array.from({length:view.frames},(_,i)=>i/view.fps));
@@ -222,7 +228,7 @@ export async function mountVideos(root){
     shortcutStep=delta=>{player.focus({preventScroll:true});pause();showFrame(requestedFrame+delta);};shortcutToggle=()=>{player.focus({preventScroll:true});togglePlayback();};shortcutReady=true;
 
     for(const [button] of viewButtons)button.disabled=false;
-    for(const button of Object.values(playback))button.disabled=false;slider.disabled=false;showFrame(0);updateStatus();loadingMask.remove();pose.setAttribute('aria-busy','false');
+    for(const button of Object.values(playback))button.disabled=false;slider.disabled=false;showFrame(0);updateStatus();loadingMask.remove();pose.setAttribute('aria-busy','false');transition();
   }
   if(catalog.length)await select(catalog[0],0);else player.textContent='No videos available.';
   document.addEventListener('visibilitychange',()=>{if(document.hidden){stop();const button=player.querySelector('.playback-controls button:nth-child(3)');if(button)setPlaybackButton(button,false);}});

@@ -1,6 +1,7 @@
 import {channelPath,sharedMeasurementScale} from '../measurement-series.js';
 import {make} from './dom.js';
 export function createMeasurementPlot(channels,frameCount){
+ const lines=new Map();let selected=new Set();
  const root=make('div',undefined,'video-measurement-plot'),ns='http://www.w3.org/2000/svg';
  const chart=make('div',undefined,'video-plot-chart'),legend=make('div',undefined,'video-plot-legend'),labels=make('div',undefined,'video-plot-y-labels'),area=make('div',undefined,'video-plot-area');
  const svg=document.createElementNS(ns,'svg'),height=120,scale=sharedMeasurementScale(channels,2);
@@ -19,9 +20,14 @@ export function createMeasurementPlot(channels,frameCount){
   button.append(make('span',undefined,'video-plot-swatch'),make('span',channel.label));legend.append(button);
   const {path}=channelPath(channel.values,0,height,1000,scale);
   const line=element('path',{d:path,fill:'none',stroke:channel.color,'stroke-width':1.8,'vector-effect':'non-scaling-stroke'});
-  button.onclick=()=>{const visible=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(visible));line.style.display=visible?'':'none';};
+  lines.set(channel.key,line);line.classList.add('video-plot-series');
+  button.onclick=()=>{const visible=button.getAttribute('aria-pressed')!=='true';button.setAttribute('aria-pressed',String(visible));line.dataset.hidden=String(!visible);updateEmphasis();};
  }
  const cursor=element('line',{x1:0,x2:0,y1:0,y2:height,stroke:'#284b3d','stroke-width':1.5,'vector-effect':'non-scaling-stroke'});
  area.append(svg);chart.append(labels,area);root.append(chart,legend);
- return {root,update(frame){const x=frame/Math.max(1,frameCount-1)*1000;cursor.setAttribute('x1',x);cursor.setAttribute('x2',x);}};
+ function updateEmphasis(){for(const [key,line] of lines){
+  line.style.opacity=line.dataset.hidden==='true'?'0':selected.size&&!selected.has(key)?'.22':'1';
+  line.style.strokeWidth=selected.has(key)?'2.8':'1.8';
+ }}
+ return {root,setSelection(keys){selected=new Set(keys);updateEmphasis();},update(frame){const x=frame/Math.max(1,frameCount-1)*1000;cursor.setAttribute('x1',x);cursor.setAttribute('x2',x);}};
 }
