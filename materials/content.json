@@ -1,8 +1,8 @@
 {
   "page": {
     "title": "Pose Information Extraction",
-    "description": "Inspecting reconstructed golf swings as a foundation for pose information extraction.",
-    "eyebrow": "Computer vision \u00b7 Golf swing analysis",
+    "description": "Explicit definitions and visual explanations for extracting body rotation and translation metrics from reconstructed 3D golf swings.",
+    "eyebrow": "Computer vision · Golf swing analysis",
     "navigationLabel": "Project sections",
     "navigationToggle": "Toggle section navigation",
     "mainPage": {
@@ -10,7 +10,7 @@
       "url": "https://youminghu0930-public.github.io/golf-swing-analysis-poc/#projects"
     },
     "footer": "Pose information extraction",
-    "role": "",
+    "role": "My role: I defined and categorized the pose metrics, designed their calculation steps, implemented the modular extraction library, and built the animated 3D explanations and interactive viewer.",
     "banner": {
       "enabled": true,
       "swing": "00",
@@ -23,42 +23,79 @@
       "id": "abstract",
       "title": "Abstract",
       "paragraphs": [
-        "This project builds on synchronized 3D golf swing reconstruction to present motion in an interactive, camera-aware viewer. Snapshot highlights and synchronized playback provide a foundation for inspecting pose information."
+        "Body-rotation terms are common in golf analysis, but the same term can describe different measurements. Choices about reference coordinates, anatomical landmarks, reference frames and rotation order can produce different numbers—and different interpretations of the same swing.",
+        "This project makes those choices explicit. I organized pose metrics into kinematic and world-reference groups, implemented their definitions in a modular calculation library, and designed animated 3D explanations that connect each number to the geometry behind it."
       ]
     },
     {
       "id": "introduction",
       "title": "Introduction",
       "paragraphs": [
-        "A reconstructed swing provides a spatial description of body and club motion. This page brings the reconstructed motion and its source recordings together for visual inspection."
+        "A label such as “shoulder turn” does not fully define a measurement. Is the shoulder line compared with the camera, a fixed reference pose, or another body segment? Which joints establish left, right and up? Which frame represents the golfer’s setup? Each decision changes the criterion being measured.",
+        "These differences create a knowledge gap between the person computing a metric and the person interpreting it. Making the criteria visible helps coaches, athletes and developers communicate about the same quantity.",
+        "Measurements derived from reconstructed 3D motion can reduce the viewpoint dependence of measurements taken directly from a 2D image. They offer a spatial description of the movement, while remaining dependent on reconstruction accuracy and the chosen reference system."
       ]
     },
     {
       "id": "method",
       "title": "Method",
       "paragraphs": [
-        "The viewer reads the saved 3D reconstruction and uses each recording\u2019s sync.json mapping to select corresponding video frames on one shared timeline."
+        "I separated the metric definitions into two groups, then specified the anatomical landmarks, coordinate construction, reference frame and calculation sequence for each metric. The UI distinguishes body rotations from geometric angles and geometric translation."
+      ],
+      "subsections": [
+        {
+          "title": "Kinematic body rotations",
+          "paragraphs": [
+            "These metrics follow a body-chain interpretation: a segment’s orientation is measured relative to its parent segment or parent coordinate frame. This is related to the forward-kinematics concepts used in robotics.",
+            "Euler angles provide an interpretable sequence of turns, bends and tilts, but their values depend on the rotation order. Quaternions can represent orientation, but do not directly provide the same readable breakdown. The definitions therefore make the reference frame and rotation sequence explicit. OnForm’s public body-rotation descriptions also informed the comparison of terminology and criteria."
+          ]
+        },
+        {
+          "title": "World-reference measurements",
+          "paragraphs": [
+            "A consistent process establishes the reference coordinate system from the selected reference pose and the assumed world-up direction. Geometric angles compare body vectors with that fixed reference, using projections onto defined planes where needed.",
+            "Translation compares positions in the same reference system. The current hip example reports sway, thrust and lift, using a reference-body normalization unit rather than claiming a calibrated distance in meters."
+          ]
+        },
+        {
+          "title": "Modular computation and visual explanation",
+          "paragraphs": [
+            "I generalized recurring operations—constructing axes, projecting vectors, comparing orientations and decomposing displacement—into reusable modules. Metric-specific definitions supply the joints and sequence, keeping the calculation hierarchy clear and easier to maintain.",
+            "The explanation library mirrors those operations visually. Animated poses, arrows, planes, angle sectors and displacement guides show how a measurement is formed without requiring the viewer to follow the underlying mathematics."
+          ]
+        }
       ]
     },
     {
       "id": "results",
       "title": "Results",
       "paragraphs": [
-        "Explore the 3D snapshot highlights above and the synchronized swings below. Switch between face-on, down-the-line, and free views to inspect the reconstructed motion."
+        "The implemented viewer links metric definitions to both step-by-step snapshot explanations and frame-by-frame swing playback. The snapshots show how reference geometry is constructed and how each measurement is obtained; the video view shows the corresponding result as the golfer moves.",
+        "Metric and pose selection support comparisons across examples. Selectable measurement overlays and synchronized curves connect the reported values to their 3D geometry and their evolution through the swing. These demonstrations make the criteria inspectable."
       ]
     },
     {
       "id": "discussion",
       "title": "Discussion",
       "paragraphs": [
-        "The current view supports qualitative inspection of reconstructed motion. Interpretation depends on the quality of the reconstruction and the alignment of the source recordings."
+        "Reference calibration remains a limitation. Automatic pipelines for determining world up, choosing a reference frame and establishing real-world scale are not yet in place, and there is no compensation algorithm for errors in those assumptions.",
+        "The current setup assumes that the face-on camera used as the world reference is level, so its up-direction error is treated as negligible. A setup frame is selected manually. Absolute size would require an external reference, such as user-entered body height combined with the reconstructed body proportions; that calibration pipeline still needs to be established.",
+        "Explicit definitions make measurements easier to reproduce and discuss, but do not remove reconstruction error or guarantee that a metric matches every coach’s interpretation. Reviewing the criteria with domain experts is an important next step."
+      ],
+      "subsections": [
+        {
+          "title": "Future work",
+          "paragraphs": [
+            "Extend the definitions to additional joints and the club; derive linear and angular velocities; and analyze the kinematic sequence across body segments. Incorporate professional feedback to refine the criteria and develop improvement advice grounded in those definitions."
+          ]
+        }
       ]
     },
     {
       "id": "conclusion",
       "title": "Conclusion",
       "paragraphs": [
-        "The interactive viewer establishes a consistent foundation for presenting pose information alongside reconstructed golf swings."
+        "A useful pose metric needs more than a familiar name: it needs a shared definition. This project connects explicit reference choices and modular computation with visual explanations, helping people understand what a number measures and compare swings using the same criteria."
       ]
     }
   ]
